@@ -21,6 +21,7 @@ import asyncio
 import dataclasses
 import glob
 import hashlib
+import hmac
 import ipaddress
 # `sys` phải nằm ở ĐẦU file: rải rác trong file có chỗ `import sys` cục bộ, nhưng cũng có chỗ
 # dùng sys.stderr mà quên import - và vì chúng nằm trong nhánh `except` (đường ghi log lỗi),
@@ -242,7 +243,7 @@ import codex_realtime  # ChatGPT Live: một Codex app-server sống lâu, realt
 import voice_persona  # a voice call from a partner's chat speaks as that partner
 import voice_call     # nút mic là gọi Javis: tự chọn ChatGPT Live / Live API / Cơ bản (0.65.18)
 
-app = FastAPI(title="Javis OS")
+app = FastAPI(title="MARGA AI OS")
 _CHAT_RUNTIME = ChatRuntime()
 
 
@@ -1326,16 +1327,16 @@ CLAUDE_CWD = os.getenv("CLAUDE_CWD", str(Path(__file__).parent.parent))
 
 # Second Brain - gộp folder brain/ trong project + vault chính
 PROJECT_ROOT = Path(__file__).parent.parent
-BRAIN_PATH = os.getenv("BRAIN_PATH", str(PROJECT_ROOT / "brain"))   # LEGACY (brain đơn cũ) - chỉ dùng để migrate
+BRAIN_PATH = os.getenv("BRAIN_PATH", str(PROJECT_ROOT / ".marga" / "brain"))
 # Thư mục CHA chứa MỌI brain - mỗi folder con = 1 second brain. Docker = /brains (mount riêng,
 # git-backup được, KHÔNG nằm trong /data state). Local = <project>/brains. Brain mặc định =
 # <BRAINS_DIR>/Brain Default. KHÔNG hardcode: cấu hình qua env, chọn brain bất kỳ qua path:.
-BRAINS_DIR = os.getenv("BRAINS_DIR", str(PROJECT_ROOT / "brains"))
+BRAINS_DIR = os.getenv("BRAINS_DIR", str(PROJECT_ROOT / ".marga" / "brains"))
 # Default PORTABLE: vault/ trong repo (tạo lần đầu chạy). Trên VPS/máy khác đặt
 # OBSIDIAN_VAULT_PATH trong .env trỏ tới vault thật; để trống = dùng vault/.
-OBSIDIAN_VAULT_PATH = os.getenv("OBSIDIAN_VAULT_PATH", str(PROJECT_ROOT / "vault"))
+OBSIDIAN_VAULT_PATH = os.getenv("OBSIDIAN_VAULT_PATH", str(PROJECT_ROOT / ".marga" / "vault"))
 # Nơi lưu file đính kèm từ chat (source cho Second Brain)
-SOURCES_PATH = os.getenv("SOURCES_PATH", str(PROJECT_ROOT / "brain" / "01 - Sources"))
+SOURCES_PATH = os.getenv("SOURCES_PATH", str(PROJECT_ROOT / ".marga" / "brain" / "01 - Sources"))
 
 # Tạo sẵn thư mục brains/vault để máy mới (VPS sạch) không crash vì thiếu folder.
 for _p in (BRAINS_DIR, OBSIDIAN_VAULT_PATH):
@@ -1575,9 +1576,17 @@ async def auth_setup(request: Request, username: str = Form(...), password: str 
     cfg = cfgmod.read_settings()
     if cfgmod.auth_enabled(cfg):
         return JSONResponse({"ok": False, "error": localefmt.chu("Đã có tài khoản - hãy đăng nhập.", "An account already exists - please sign in.")}, status_code=400)
-    # MÃ THIẾT LẬP đã bỏ (0.64.47, chủ dự án chốt 24/09): lần đầu chỉ cần tên + mật khẩu, bảo
-    # vệ tiếp theo là 2FA. `setup_token` vẫn nhận nhưng bỏ qua, để client cũ còn gửi không lỗi.
-    # Máy cài bằng install.sh có admin sẵn từ .env nên màn này không bao giờ hiện ra ở đó.
+    expected = os.getenv("MARGA_SETUP_TOKEN", "")
+    if expected:
+        authorized = len(expected) >= 32 and bool(setup_token) and hmac.compare_digest(setup_token, expected)
+    else:
+        # Tokenless bootstrap is restricted to a direct loopback request on a native host.
+        # Docker, proxies, tunnels, and public deployments must configure an owner-held token.
+        authorized = (_direct_local_request(request) and _deploy_mode() != "docker")
+    if not authorized:
+        return JSONResponse({"ok": False, "error": localefmt.chu(
+            "Thiết lập quản trị bị khóa. Cần mã bootstrap của chủ máy hoặc truy cập cục bộ an toàn.",
+            "Administrator setup is locked. An owner bootstrap token or secure local access is required.")}, status_code=403)
     password = cfgmod.clean_password(password)
     if len(password) < 8:
         return JSONResponse({"ok": False, "error": localefmt.chu("Mật khẩu tối thiểu 8 ký tự", "Password must be at least 8 characters")}, status_code=400)
@@ -1740,7 +1749,7 @@ async def auth_2fa_start(request: Request):
     _TOTP_CHO.clear()
     _TOTP_CHO.update(secret=secret, ts=time.time())
     uri = totp.otpauth_uri(secret, _ten_hien_thi(cfg),
-                           cfg.get("workspace_name") or "Javis OS")
+                           cfg.get("workspace_name") or "MARGA AI OS")
     return {"ok": True, "secret": secret, "uri": uri, "qr_svg": totp.qr_svg(uri)}
 
 
@@ -6949,6 +6958,14 @@ async def connect_oauth_callback(state: str = Query(""), code: str = Query(""), 
 @app.get("/settings")  # def thường, xem ghi chú ở list_agents
 def settings_get():
     cfg = cfgmod.read_settings()
+    # Migrate legacy UI/reply language preferences without touching timezone, currency,
+    # account data, provider settings, or user content.
+    try:
+        stored_locale = (cfgmod._doc_file_settings().get("locale") or {})
+    except Exception:
+        stored_locale = {}
+    if stored_locale.get("ui_lang") != "en" or stored_locale.get("reply_lang") != "en":
+        cfg = cfgmod.update_settings({"locale": {"ui_lang": "en", "reply_lang": "en"}})
     safe = json.loads(json.dumps(cfg))
     safe["auth"] = {"username": cfg["auth"].get("username", ""), "has_password": bool(cfg["auth"].get("password_hash"))}
     # Danh sách ngôn ngữ đi kèm cài đặt luôn, thay vì bắt dashboard gọi thêm một endpoint.
@@ -7091,9 +7108,9 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
             v = str(patch["reply_lang"] or "").strip().lower()
             # "auto" là giá trị HỢP LỆ, không phải chuỗi rỗng: nó nghĩa là "bám theo người
             # dùng", khác hẳn với "chưa chọn".
-            lc["reply_lang"] = "auto" if v in ("", "auto") else (lang_registry.chuan_hoa(v) or "auto")
+            lc["reply_lang"] = "en"
         if "ui_lang" in patch:
-            lc["ui_lang"] = lang_registry.chuan_hoa(patch["ui_lang"]) or lang_registry.MAC_DINH
+            lc["ui_lang"] = "en"
             # Nguồn của giá trị: "tu_dong" = dashboard tự ghi theo trình duyệt của thiết bị ghé
             # đầu tiên, "chon" = người dùng chọn. Chỉ giá trị người CHỌN mới được áp lên thiết bị
             # khác (console.js); không thì người ghé đầu tiên quyết định ngôn ngữ của mọi người.
@@ -7120,7 +7137,7 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
             cfg.setdefault("chat", {})["plan_tool"] = bool(patch["plan_tool"])
     elif section == "general":
         if "workspace_name" in patch:
-            cfg["workspace_name"] = patch["workspace_name"] or "Javis OS"
+            cfg["workspace_name"] = patch["workspace_name"] or "MARGA AI OS"
         if "setup_done" in patch:
             cfg["setup_done"] = bool(patch["setup_done"])
     elif section == "model":
@@ -8475,7 +8492,7 @@ def _check_structure(root: Path):
     return items
 
 JAVIS_README = (
-    "# Javis\n\nLớp điều phối của Javis OS trong vault này.\n\n"
+    "# MARGA AI OS\n\nLớp điều phối của MARGA AI OS trong vault này.\n\n"
     "- `agents/` - các Agent (vai trò + skills + bộ nhớ riêng)\n"
     "- `workflows/` - quy trình nhiều agent (status active/off)\n"
     "- Skills dùng chung ở `skills/` (tự mirror sang `.claude/skills` cho Claude Code native)\n"
@@ -8500,12 +8517,12 @@ TASKINBOX_SEED = (
     "Việc thêm nhanh từ dashboard - kéo về đúng sổ khi rảnh.\n"
 )
 SCHEMA_SEED = (
-    "# AGENTS.md - Vault Schema (Javis)\n\n"
-    "> Vault này hoạt động với Javis OS. Cấu trúc:\n\n"
+    "# AGENTS.md - Vault Schema (MARGA AI OS)\n\n"
+    "> Vault này hoạt động với MARGA AI OS. Cấu trúc:\n\n"
     "- `01 - Daily Log/` → `04 - Future Log/` - bộ sổ bullet journal (nhật ký ngày/tuần/tháng/tương lai, chứa task `- [ ]`; khối dataview kéo việc từ đây)\n"
     "- `06 - Sources/` - ghi chú thô (source of truth)\n"
     "- `07 - Wiki/` - tri thức đã chưng cất, có `[[wikilink]]`\n"
-    "- `memory/` - bộ nhớ dài hạn của Javis (facts + conversations)\n"
+    "- `memory/` - bộ nhớ dài hạn của MARGA AI OS (facts + conversations)\n"
     "- `Javis/` - agents + workflows\n\n"
     "Nguyên lý: Sources → (ingest) → Wiki. Tri thức tích luỹ, không tái phát hiện.\n"
 )
@@ -10005,10 +10022,10 @@ async def save_skill(name: str = Form(...), description: str = Form(""), group: 
 async def delete_skill(slug: str = Form(...), brain: str = Form("brain")):
     if system_sync.is_system_skill(slug):
         return JSONResponse({"error": localefmt.chu(
-            "Skill hệ thống của Javis OS - không xoá được (đi theo "
+            "Skill hệ thống của MARGA AI OS - không xoá được (đi theo "
             "phiên bản app, xoá cũng tự cài lại khi cập nhật). Muốn ngừng dùng "
             "thì TẮT skill (bỏ tích).",
-            "This is a Javis OS system skill and cannot be deleted (it ships with "
+            "This is a MARGA AI OS system skill and cannot be deleted (it ships with "
             "the app version and would reinstall itself on update). To stop using it, "
             "turn the skill OFF (untick it).")}, status_code=400)
     if not skill_router.valid_slug(slug):
@@ -10834,9 +10851,9 @@ async def files_open_local(request: Request, path: str = Form(...), brain: str =
 def _share_chan(ban) -> str:
     """Dòng chân trang: nói rõ đây là file được chia sẻ, để người xem biết mình đang xem gì."""
     if share_store.is_conversation(ban):
-        return localefmt.chu("Đoạn hội thoại được chia sẻ từ Javis OS", "A conversation shared from Javis OS")
+        return localefmt.chu("Đoạn hội thoại được chia sẻ từ MARGA AI OS", "A conversation shared from MARGA AI OS")
     ten = os.path.basename(str(ban.get("path") or "")) or "file"
-    return share_render.esc(ten) + localefmt.chu(" · được chia sẻ từ Javis OS", " · shared from Javis OS")
+    return share_render.esc(ten) + localefmt.chu(" · được chia sẻ từ MARGA AI OS", " · shared from MARGA AI OS")
 
 
 def _share_file(ban):
@@ -13013,12 +13030,9 @@ def _agent_identity_block(name) -> str:
     "who are you" answered that it was ChatGPT (owner report 2026-11-05), and an API engine's own "you run on model
     X" fact pulled the same way. Answering with the engine stays right when the owner asks which MODEL it runs on."""
     return (
-        "\n# Bạn là ai\n"
-        f"- Bạn là {name}, một cộng sự (trợ lý chuyên trách) trong Javis OS, hệ trợ lý AI cá nhân của chủ. Javis là "
-        "hệ thống bạn chạy bên trong: cùng brain, cùng kết nối và công cụ, nhưng vai, giọng và bộ nhớ là của bạn.\n"
-        f"- Hỏi bạn là ai thì trả lời bạn là {name}, cộng sự trong Javis của chủ, kèm vai của mình. KHÔNG tự nhận là "
-        "ChatGPT, Claude, Gemini, Grok hay một trợ lý AI chung chung. Chỉ khi chủ hỏi rõ đang chạy model hay engine "
-        "nào mới nói đúng tên model đó.\n"
+        "\n# Identity\n"
+        f"- You are {name}, a specialist assistant in MARGA AI OS. MARGA provides the shared brain, connections, and tools; your role, voice, and memory are your own.\n"
+        f"- If asked who you are, identify yourself as {name}, a specialist assistant in MARGA AI OS, and briefly state your role. Do not claim to be ChatGPT, Claude, Gemini, Grok, or a generic assistant. Name the actual model or engine only when explicitly asked.\n"
     )
 
 
@@ -16685,7 +16699,7 @@ async def path_exists(path: str = Query("", description="Đường dẫn tuyệt
 async def config():
     s = cfgmod.read_settings()
     return {
-        "workspace_name": s.get("workspace_name") or os.getenv("WORKSPACE_NAME", "Javis OS"),
+        "workspace_name": s.get("workspace_name") or os.getenv("WORKSPACE_NAME", "MARGA AI OS"),
         "user_name": os.getenv("USER_NAME", localefmt.chu("Bạn", "You")),
         "tts_voice": os.getenv("TTS_VOICE", "en-US-EmmaMultilingualNeural"),
         "tts_rate": os.getenv("TTS_RATE", "+5%"),
@@ -16695,7 +16709,16 @@ async def config():
 # ============================================
 # Phiên bản + cập nhật trong UI
 # ============================================
-GITHUB_REPO = "blogminhquy/javis-os"
+def _configured_marga_repo() -> str:
+    """Return an explicitly configured MARGA source slug, never the inherited Jarvis source."""
+    raw = (os.getenv("MARGA_UPDATE_REPOSITORY", "") or "").strip()
+    match = re.fullmatch(r"(?:https://github\.com/)?([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?", raw)
+    if not match or re.search(r"javis|jarvis", raw, re.IGNORECASE):
+        return ""
+    return f"{match.group(1)}/{match.group(2)}"
+
+
+GITHUB_REPO = _configured_marga_repo()
 _UPDATE_TASKS = set()   # giữ ref mạnh cho asyncio.create_task (tránh GC nuốt mất task)
 
 
@@ -16797,6 +16820,8 @@ async def _latest_remote_version(cur: str = ""):
     Nhật ký đã có cache 10 phút riêng (_cl_remote_releases); VERSION chưa thấy bản mới mà cache
     đó đã cũ hơn một phút thì tải lại, để bấm "Kiểm tra lại" không phải chờ hết 10 phút.
     """
+    if not GITHUB_REPO:
+        return cur or None, "MARGA updates are unavailable until MARGA_UPDATE_REPOSITORY is configured."
     latest, err = None, None
     try:
         import httpx
@@ -16989,6 +17014,12 @@ async def do_update():
     import subprocess
     import datetime as _dt
     now = lambda: _dt.datetime.now().isoformat(timespec="seconds")
+
+    if not GITHUB_REPO:
+        return JSONResponse({"ok": False, "error": localefmt.chu(
+            "Cập nhật MARGA hiện chưa khả dụng. Hãy cấu hình nguồn phát hành MARGA đã được phê duyệt.",
+            "MARGA updates are unavailable until an approved MARGA release source is configured.")},
+            status_code=503)
 
     st = _read_update_state()
     if st.get("phase") in _UPDATE_ACTIVE and _update_recent(st.get("started_at")):
@@ -17359,6 +17390,8 @@ async def _load_community_announcements():
     """Local làm fallback; bản trên GitHub main ghi đè cùng id để phát tin không cần release."""
     by_id, err = {}, None
     local_path = PROJECT_ROOT / "ANNOUNCEMENTS.json"
+    if not GITHUB_REPO:
+        return list(by_id.values()), None
     try:
         if local_path.exists():
             for item in _parse_announcements(local_path.read_text(encoding="utf-8")):
@@ -17425,6 +17458,8 @@ async def _cl_remote_releases(refresh: bool = False):
     Hỏng mạng thì GIỮ bản cũ đã tải được thay vì trả rỗng: mất mạng năm phút không phải lý do
     để danh sách phiên bản mới biến mất khỏi trang.
     """
+    if not GITHUB_REPO:
+        return [], "updates_unconfigured"
     now = time.monotonic()
     if not refresh and _CL_REMOTE["releases"] and now - _CL_REMOTE["at"] < _CL_REMOTE_TTL:
         return _CL_REMOTE["releases"], _CL_REMOTE["err"]
@@ -17506,6 +17541,8 @@ def _cl_dich_local(ma: str) -> dict:
 async def _cl_dich_remote(ma: str, refresh: bool = False) -> dict:
     """Bản dịch trên GitHub, để phiên bản CHƯA cài cũng hiện đúng ngôn ngữ. Cache như bản gốc;
     hỏng mạng thì giữ bản đã có (thiếu thì chỉ là hiện bản tiếng Việt, không sao)."""
+    if not GITHUB_REPO:
+        return {}
     now = time.monotonic()
     c = _CL_DICH_REMOTE.get(ma) or {"at": 0.0, "map": {}}
     if not refresh and c["map"] and now - c["at"] < _CL_REMOTE_TTL:
@@ -17622,9 +17659,9 @@ async def _notifications_data():
         releases.append({
             "id": f"release:{rel.get('version')}",
             "kind": "update",
-            "title": f"Javis OS v{rel.get('version')}",
-            "summary": bullets[0] if bullets else localefmt.chu("Bản cập nhật Javis OS mới.",
-                                                                "A new Javis OS update."),
+            "title": f"MARGA AI OS v{rel.get('version')}",
+            "summary": bullets[0] if bullets else localefmt.chu("Bản cập nhật MARGA AI OS mới.",
+                                                                "A new MARGA AI OS update."),
             "body": "\n".join(f"• {item}" for item in bullets[1:5]),
             "published_at": rel.get("date") or "",
             "priority": "high" if (is_current or (is_new and is_latest)) else "normal",
@@ -27258,15 +27295,9 @@ async def _stt_nghe(data, ten="", agent=None):
     # ép "vi" như trước: người nói tiếng Anh vào một Javis đang để "auto" thì cái ép đó biến
     # câu của họ thành một câu tiếng Việt sai nghĩa.
     _lc2 = _cfg.get("locale") or {}
-    # Thứ tự: ngôn ngữ trả lời đã GHIM -> ngôn ngữ giao diện -> để Whisper tự dò.
-    #
-    # `ui_lang` ở giữa là để CHỮA MỘT HỒI QUY chứ không phải cho đẹp: `reply_lang` mặc định
-    # là "auto", nên nếu chỉ đọc mỗi nó thì mọi máy đang chạy đột nhiên mất gợi ý "vi" mà chủ
-    # máy không đổi cài đặt gì. Whisper không có gợi ý thì câu tiếng Việt NGẮN hay bị đoán
-    # nhầm sang tiếng khác rồi dịch luôn, ra một câu không ai gõ bao giờ - đúng lý do gợi ý
-    # này tồn tại từ đầu.
-    _ma = (lang_registry.chuan_hoa(_lc2.get("reply_lang") or "")
-           or lang_registry.chuan_hoa(_lc2.get("ui_lang") or ""))
+    # Output language is fixed to English. Keep speech input independent so the recognizer can
+    # auto-detect the spoken language instead of mistaking the response preference for input.
+    _ma = ""
     # Cùng bộ từ vựng và lớp sửa nghe nhầm như mic trên dashboard (nghe_sua): tin thoại Telegram
     # hay Zalo nói "David" cũng phải ra "Javis" trước khi vào bộ não.
     _tv = nghe_sua.fix_vocabulary(_cfg)
@@ -28035,9 +28066,9 @@ async def messenger_comments_mode(request: Request):
 async def messenger_privacy():
     """Privacy policy and data deletion page for the owner's Meta app (needed to go Live)."""
     try:
-        brand = str(cfgmod.read_settings().get("workspace_name") or "") or "Javis OS"
+        brand = str(cfgmod.read_settings().get("workspace_name") or "") or "MARGA AI OS"
     except Exception:
-        brand = "Javis OS"
+        brand = "MARGA AI OS"
     pages = []
     try:
         pages = [(a.get("meta") or {}).get("bot_name") or a.get("label") or ""

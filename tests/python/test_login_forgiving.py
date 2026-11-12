@@ -27,6 +27,8 @@ import os
 import tempfile
 
 os.environ["JAVIS_STATE_DIR"] = tempfile.mkdtemp(prefix="javis-login-")
+BOOTSTRAP_TOKEN = "test-only-marga-bootstrap-token-32-chars"
+os.environ["MARGA_SETUP_TOKEN"] = BOOTSTRAP_TOKEN
 # Public-server mode, like the customer's VPS (and lets TestClient's host through the DNS-rebinding guard).
 os.environ["JAVIS_REQUIRE_LOGIN"] = "1"
 os.environ.pop("JAVIS_ADMIN_PASSWORD", None)
@@ -117,7 +119,7 @@ cfg = c.read_settings()
 cfg.pop("auth", None)
 c.write_settings(cfg)
 cl = TestClient(main.app)
-r = cl.post("/auth/setup", data={"username": "Phong", "password": "mat-khau-moi-1 "})
+r = cl.post("/auth/setup", data={"username": "Phong", "password": "mat-khau-moi-1 ", "setup_token": BOOTSTRAP_TOKEN})
 check(f"setup screen: account created ({r.status_code})", r.status_code == 200 and r.json().get("ok"))
 cfg = c.read_settings()
 check("setup screen: password stored without the trailing space",
@@ -156,7 +158,7 @@ check("password change: stored without surrounding spaces",
 cfg = c.read_settings()
 cfg.pop("auth", None)
 c.write_settings(cfg)
-r = TestClient(main.app).post("/auth/setup", data={"username": "x", "password": "        "})
+r = TestClient(main.app).post("/auth/setup", data={"username": "x", "password": "        ", "setup_token": BOOTSTRAP_TOKEN})
 check(f"setup: an all-space password is refused ({r.status_code})", r.status_code == 400)
 check("setup: and nothing was stored", not c.auth_enabled())
 

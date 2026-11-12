@@ -20,6 +20,8 @@ from pathlib import Path
 
 state = tempfile.mkdtemp(prefix="javis-setup-")
 os.environ["JAVIS_STATE_DIR"] = state
+BOOTSTRAP_TOKEN = "test-only-marga-bootstrap-token-32-chars"
+os.environ["MARGA_SETUP_TOKEN"] = BOOTSTRAP_TOKEN
 os.environ["BRAINS_DIR"] = str(Path(state) / "brains")
 os.environ["JAVIS_SESSIONS_DB"] = str(Path(state) / "sessions.db")
 os.environ["JAVIS_REQUIRE_LOGIN"] = "1"      # giả lập deploy public
@@ -46,12 +48,14 @@ check("đang giả lập server public, bắt buộc đăng nhập", cfgmod.requ
 check("và chưa có admin", not cfgmod.auth_enabled())
 
 # ---- 2. Rào mật khẩu vẫn đứng (thử TRƯỚC khi tạo admin) ----
-r = client.post("/auth/setup", data={"username": "quy", "password": "ngan"})
+r = client.post("/auth/setup", data={"username": "quy", "password": "matkhau-dai-du"})
+check("thiếu token bootstrap thì không tạo được quản trị viên", r.status_code == 403 and not cfgmod.auth_enabled(), r.text)
+r = client.post("/auth/setup", data={"username": "quy", "password": "ngan", "setup_token": BOOTSTRAP_TOKEN})
 check("mật khẩu dưới 8 ký tự vẫn bị chặn", r.status_code == 400 and not cfgmod.auth_enabled(), r.text)
 
 # ---- 1. Tên + mật khẩu là đủ ----
-r = client.post("/auth/setup", data={"username": "quy", "password": "matkhau-dai-du"})
-check("CANARY: public + chưa admin, tạo được admin CHỈ với tên + mật khẩu", r.status_code == 200 and r.json().get("ok"), r.text)
+r = client.post("/auth/setup", data={"username": "quy", "password": "matkhau-dai-du", "setup_token": BOOTSTRAP_TOKEN})
+check("CANARY: token do chủ máy kiểm soát cho phép tạo quản trị viên", r.status_code == 200 and r.json().get("ok"), r.text)
 check("admin đã được ghi, đúng tên", cfgmod.auth_enabled() and cfgmod.read_settings()["auth"]["username"] == "quy")
 check("tạo xong là có phiên đăng nhập luôn (cookie)", bool(r.cookies) or "set-cookie" in {k.lower() for k in r.headers})
 
@@ -62,8 +66,19 @@ check("CANARY: đã có admin thì /auth/setup từ chối, không tạo đè",
 
 # ---- 3. Client cũ còn gửi setup_token ----
 s = cfgmod.read_settings(); s.pop("auth", None); cfgmod.write_settings(s)
-r = client.post("/auth/setup", data={"username": "cu", "password": "matkhau-client-cu", "setup_token": "gi-cung-duoc"})
+r = client.post("/auth/setup", data={"username": "cu", "password": "matkhau-client-cu", "setup_token": BOOTSTRAP_TOKEN})
 check("client cũ gửi kèm setup_token vẫn tạo được, không lỗi", r.status_code == 200 and r.json().get("ok"), r.text)
+
+# No bootstrap secret means remote requests are denied; native direct-loopback setup remains available.
+s = cfgmod.read_settings(); s.pop("auth", None); cfgmod.write_settings(s)
+os.environ.pop("MARGA_SETUP_TOKEN", None)
+main._direct_local_request = lambda _request: False
+main._deploy_mode = lambda: "native"
+r = client.post("/auth/setup", data={"username": "remote", "password": "remote-pass-long"})
+check("remote setup bị từ chối khi không cấu hình bootstrap token", r.status_code == 403)
+main._direct_local_request = lambda _request: True
+r = client.post("/auth/setup", data={"username": "local", "password": "local-pass-long"})
+check("native loopback cho phép chủ máy thiết lập cục bộ", r.status_code == 200 and r.json().get("ok"), r.text)
 
 # ---- 4. Không còn dấu vết mã ----
 cu = Path(state) / ".setup_token"
@@ -81,8 +96,8 @@ check("lúc khởi động dọn file mã cũ", "cfgmod.clear_setup_token()" in 
 _html = (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8")
 _app = (ROOT / "dashboard" / "app.js").read_text(encoding="utf-8")
 check("màn chào mừng không còn ô nhập mã", 'id="wzToken"' not in _html and "wzTokenWrap" not in _html)
-check("màn chào mừng vẫn có ô tên và mật khẩu", 'id="wzUser"' in _html and 'id="wzPass"' in _html)
-check("app.js không còn gửi hay kiểm mã", "setup_token" not in _app and "wzToken" not in _app)
+check("màn chào mừng có tài khoản, mật khẩu và mã bootstrap", 'id="wzUser"' in _html and 'id="wzPass"' in _html and 'id="wzBootstrapToken"' in _html)
+check("app.js gửi mã bootstrap khi tạo tài khoản lần đầu", 'setup_token: setupToken' in _app and 'setAuthBootstrapToken' in _app)
 for lang in ("vi", "en"):
     d = json.loads((ROOT / "dashboard" / "i18n" / f"{lang}.json").read_text(encoding="utf-8"))
     thua = [k for k in d if k.startswith("wz.tok") or k == "app.wz_token_missing"]

@@ -69,11 +69,11 @@ _DEFAULT_MODELS = {
 
 # Sent to the model, so it stays in the language the owner speaks.
 SYSTEM_PROMPT = (
-    "Bạn sửa lỗi máy nghe giọng nói, câu thường là tiếng Việt xen tiếng Anh. Chỉ sửa những từ bị "
-    "nghe thành từ gần âm nhưng sai, ưu tiên tên riêng và thuật ngữ trong danh sách được cho. Giữ "
-    "nguyên mọi chữ khác: không thêm, không bớt, không viết lại câu, không giải thích, không đổi "
-    "dấu câu. Câu bằng ngôn ngữ nào thì giữ đúng ngôn ngữ đó, không dịch. Nếu không chắc thì giữ nguyên. Chỉ trả về "
-    "đúng câu đã sửa."
+    "Correct speech-recognition errors. Change only words that are clearly transcribed as the "
+    "wrong near-sound, prioritizing proper names and the supplied terminology. Preserve every "
+    "other character: do not add, remove, rewrite, explain, or change punctuation. Keep the "
+    "transcript in its original language; do not translate user content. If uncertain, leave it "
+    "unchanged. Return only the corrected sentence."
 )
 
 

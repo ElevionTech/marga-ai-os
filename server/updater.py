@@ -295,8 +295,15 @@ def drop_update_stash(stash_oid, restored):
 
 
 def release_source():
-    """The same official release branch that /version checks in main.py."""
-    return "https://github.com/blogminhquy/javis-os.git", "main"
+    """An explicitly configured MARGA release source; no inherited Jarvis fallback."""
+    repository = (os.getenv("MARGA_UPDATE_REPOSITORY", "") or "").strip()
+    match = re.fullmatch(r"(?:https://github\.com/)?([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?", repository)
+    if not match or re.search(r"javis|jarvis", repository, re.IGNORECASE):
+        return "", ""
+    branch = (os.getenv("MARGA_UPDATE_BRANCH", "main") or "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9._/-]+", branch) or branch.startswith("-") or ".." in branch:
+        return "", ""
+    return f"https://github.com/{match.group(1)}/{match.group(2)}.git", branch
 
 
 def _clean_tracked_tree():
@@ -311,6 +318,9 @@ def merge_release():
     reapplies its stash. If abort fails, leave the backup untouched for manual recovery.
     """
     remote, branch = release_source()
+    if not remote:
+        error = "MARGA updates are unavailable until MARGA_UPDATE_REPOSITORY is configured."
+        return subprocess.CompletedProcess(["git", "fetch"], 1, "", error), True
     before = _head_hien_tai()
     if not before or remote.startswith("-") or branch.startswith("-"):
         error = _chu("Không xác định được HEAD hoặc nguồn phát hành hợp lệ.",
@@ -347,6 +357,9 @@ def chan_doan_pull(pull_out: str) -> str:
     """Explain a healthy server whose VERSION did not advance after release merge."""
     out = (pull_out or "").strip()
     remote, branch = release_source()
+    if not remote:
+        return _chu("MARGA chưa cấu hình nguồn cập nhật được phê duyệt.",
+                    "MARGA has no approved update source configured.")
     if "up to date" in out.lower() or "up-to-date" in out.lower():
         return _chu(f"Nguồn phát hành {remote}/{branch} chưa có phiên bản mới hơn. Nếu chạy bằng "
                     "Docker hoặc bản đóng gói, hãy cập nhật image thay vì nút này.",
@@ -543,6 +556,10 @@ def main():
                     help="Worker under the user's systemd: restart the service by signal, not systemctl")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
+
+    if not release_source()[0]:
+        print("MARGA updates are unavailable until MARGA_UPDATE_REPOSITORY is configured.", file=sys.stderr)
+        return 2
 
     if a.dry_run:
         remote, branch = release_source()

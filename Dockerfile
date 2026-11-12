@@ -19,14 +19,14 @@ FROM python:3.12-slim
 
 # OCI image labels: Docker Manager (Hostinger) + registry đọc để hiện cột "Guide"
 # (Documentation / Quick start / Source). Trỏ về docs trên GitHub.
-LABEL org.opencontainers.image.title="Javis OS" \
+LABEL org.opencontainers.image.title="MARGA AI OS" \
       org.opencontainers.image.description="AI operating layer: chat + voice + second brain + tự động hoá, xây trên CLI của nhà cung cấp AI (Claude Code, ChatGPT/Codex)." \
-      org.opencontainers.image.url="https://github.com/blogminhquy/javis-os" \
-      org.opencontainers.image.source="https://github.com/blogminhquy/javis-os" \
-      org.opencontainers.image.documentation="https://github.com/blogminhquy/javis-os/blob/main/docs/README.md" \
+      org.opencontainers.image.url="" \
+      org.opencontainers.image.source="" \
+      org.opencontainers.image.documentation="" \
       org.opencontainers.image.licenses="MIT" \
-      com.hostinger.documentation="https://github.com/blogminhquy/javis-os/blob/main/docs/README.md" \
-      com.hostinger.quickstart="https://github.com/blogminhquy/javis-os/blob/main/QUICKSTART.md"
+      com.hostinger.documentation="" \
+      com.hostinger.quickstart=""
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -117,6 +117,7 @@ RUN useradd -u 10001 -m -d /home/javis javis \
 # Writable state under /data; ALL second brains under /brains (mount riêng → git-backup được).
 ENV JAVIS_HOST=0.0.0.0 \
     JAVIS_PORT=7777 \
+    MARGA_STATE_DIR=/data/state \
     JAVIS_STATE_DIR=/data/state \
     BRAIN_PATH=/data/brain \
     BRAINS_DIR=/brains \
@@ -144,8 +145,8 @@ ENV JAVIS_CODEX_SANDBOX=off
 # somewhere else (a PC's `docker build`, then `docker save` / `docker load` onto a VPS) leaves it empty, and the Update
 # page then says that pulling cannot update it, instead of telling the owner to Redeploy (a user's VPS, 21/10/2026, ran
 # such an image and stayed on 0.206.0). Declared last so the stamp never invalidates the layers above.
-ARG JAVIS_IMAGE_SOURCE=""
-ENV JAVIS_IMAGE_SOURCE=${JAVIS_IMAGE_SOURCE}
+ARG MARGA_IMAGE_SOURCE=""
+ENV MARGA_IMAGE_SOURCE=${MARGA_IMAGE_SOURCE}
 
 USER javis
 

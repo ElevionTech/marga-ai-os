@@ -28,6 +28,7 @@ import stat
 import sys
 import tempfile
 from pathlib import Path
+from _fake_cli_exec import register_fake_cli
 
 os.environ["JAVIS_STATE_DIR"] = tempfile.mkdtemp(prefix="javis-groktest-")
 
@@ -69,6 +70,8 @@ def _nap_help(txt=_HELP, path="/fake/grok"):
     Phải stub cả `find_grok_cli`: `_help_text()` thoát ngay khi không tìm thấy binary, TRƯỚC
     khi nhìn tới cache - nên chỉ nhét cache thôi thì `co_co()` vẫn trả False.
     """
+    if path != "/fake/grok" and Path(path).exists():
+        register_fake_cli(path)
     grok_cli.find_grok_cli = lambda: path
     grok_cli._HELP_CACHE.update(path=path, text=txt, ts=float("inf"))
 
@@ -111,7 +114,7 @@ check("luôn đặt --permission-mode tường minh (headless mà dừng hỏi d
 # ============================================================
 # 3. argv dựng ra phải đúng hợp đồng của CLI
 # ============================================================
-_g = grok_cli.GrokCLI(cwd="/tmp", model="grok-4.6")
+_g = grok_cli.GrokCLI(cwd=tempfile.gettempdir(), model="grok-4.6")
 _g.cli_path = "/fake/grok"
 _argv = _g._build_args(prompt_file="/tmp/p.txt", prompt_argv="dài" * 20000)
 check("có --output-format streaming-json (không có thì không đọc được sự kiện nào)",
@@ -177,11 +180,12 @@ def _gia(dong_ra, ma=0, stderr=""):
         f"sys.exit({ma})\n",
         encoding="utf-8")
     p.chmod(p.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    register_fake_cli(p)
     return str(p)
 
 
 def _chay_gia(dong_ra, ma=0, stderr="", prompt="xin chào"):
-    g = grok_cli.GrokCLI(cwd="/tmp")
+    g = grok_cli.GrokCLI(cwd=tempfile.gettempdir())
     g.cli_path = _gia(dong_ra, ma, stderr)
 
     async def _go():
@@ -261,7 +265,8 @@ _treo.write_text("#!/usr/bin/env python3\nimport sys, time\n"
                  "if '--help' in sys.argv:\n    print('  -p, --single')\n"
                  "else:\n    time.sleep(60)\n", encoding="utf-8")
 _treo.chmod(_treo.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-_gh = grok_cli.GrokCLI(cwd="/tmp")
+register_fake_cli(_treo)
+_gh = grok_cli.GrokCLI(cwd=tempfile.gettempdir())
 _gh.cli_path = str(_treo)
 _gh.timeout = 2
 async def _go_treo():
@@ -313,7 +318,7 @@ check("CANARY: entry MCP dùng khoá `url` - KHÔNG phải `httpUrl` (Gemini) ha
       "url" in _hub and "httpUrl" not in _hub and "serverUrl" not in _hub, _hub)
 _p = grok_cli.ghi_mcp_settings(_brain, _hub)
 check("ghi vào TRONG brain, không đụng ~/.grok của người dùng",
-      _p is not None and str(_brain) in _p and _p.endswith(".grok/config.toml"), _p)
+      _p is not None and str(_brain) in _p and Path(_p).as_posix().endswith(".grok/config.toml"), _p)
 _st = grok_cli.trang_thai_mcp(_brain)
 check("đọc LẠI chính file vừa ghi thì thấy entry javis",
       _st["co_javis"] and _st["url"] == "http://127.0.0.1:8790/mcp" and _st["so_header"] == 3, _st)
@@ -554,6 +559,7 @@ _p.write_text(
     "print('Logged in as ai@x.ai')\n",
     encoding="utf-8")
 _p.chmod(_p.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+register_fake_cli(_p)
 
 _HOME_CU2 = os.environ.get("GROK_HOME")
 os.environ["GROK_HOME"] = _login_home
@@ -613,11 +619,12 @@ def _gia_kich_ban(than: str):
     q = d / "grok"
     q.write_text("#!/usr/bin/env python3\nimport sys, json\n" + than, encoding="utf-8")
     q.chmod(q.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    register_fake_cli(q)
     return str(q)
 
 
 def _chay(cli_path, prompt="chào grok"):
-    g = grok_cli.GrokCLI(cwd="/tmp")
+    g = grok_cli.GrokCLI(cwd=tempfile.gettempdir())
     g.cli_path = cli_path
 
     async def _go():
@@ -893,7 +900,7 @@ check("mức full vẫn không chặn gì", grok_cli._LUAT_CHAN["full"] == ())
 # hang silently) keeps the 900 s net; JAVIS_GROK_TIMEOUT still sets a cap.
 _co_that, _env_that = grok_cli.co_co, os.environ.pop("JAVIS_GROK_TIMEOUT", None)
 try:
-    _gc = grok_cli.GrokCLI(cwd="/tmp")
+    _gc = grok_cli.GrokCLI(cwd=tempfile.gettempdir())
     grok_cli.co_co = lambda *names: "--permission-mode" in names
     check("no cap by default when the CLI auto-approves (--permission-mode)", _gc.turn_cap() == 0)
     grok_cli.co_co = lambda *names: False

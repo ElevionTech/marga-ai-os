@@ -133,7 +133,9 @@ class LiveRouteMixin:
             try:
                 return await self._run_in(store, directory, script, answers, status_supported, live_overrides or {})
             finally:
-                store._conn.close()
+                # Close the reader connections as well as the writer connection.  Windows
+                # keeps the SQLite file locked while a per-thread WAL reader is alive.
+                store.close()
 
     async def _run_in(self, store, directory, script, answers, status_supported, live_overrides):
         sid = store.get_or_create(None, brain="brain", engine="test", model="test")
@@ -177,6 +179,10 @@ class LiveRouteMixin:
             _brain_memory_dir=lambda root: Path(directory), _brain_root=lambda b: directory,
             _fit_memory_index=lambda mem, cap=None: mem[:cap],
             _voice_ask_javis=ask, get_store=lambda: store, _brain_key=lambda b: b,
+            # The route calls this optional partner-voice selector before creating the
+            # provider.  The focused harness does not need agent files, so preserve the
+            # global voice settings for these tests.
+            _voice_partner_settings=lambda cfg, sid, b: cfg,
             _voice_persona=lambda sid, b: None,
             voice_call=types.SimpleNamespace(live_settings=lambda c: c, select_call_engine=lambda c: {"engine": "live"}))
         exec(compile(route_tree(), "live-route", "exec"), namespace)

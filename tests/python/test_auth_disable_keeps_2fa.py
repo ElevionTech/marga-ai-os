@@ -17,6 +17,8 @@ import sys
 import tempfile
 
 os.environ["JAVIS_STATE_DIR"] = tempfile.mkdtemp(prefix="javis-auth-disable-test-")
+BOOTSTRAP_TOKEN = "test-only-marga-bootstrap-token-32-chars"
+os.environ["MARGA_SETUP_TOKEN"] = BOOTSTRAP_TOKEN
 os.environ["JAVIS_REQUIRE_LOGIN"] = "0"
 os.environ.pop("JAVIS_ADMIN_PASSWORD", None)
 
@@ -122,7 +124,7 @@ check("CANARY: 2FA config is KEPT (enabled + same secret)",
 check("old sessions are dropped", not c.valid_session(dict(cl.cookies).get("javis_session", "")))
 
 # Setting a password again brings 2FA back in force.
-r = cl.post("/auth/setup", data={"username": "admin", "password": PW})
+r = cl.post("/auth/setup", data={"username": "admin", "password": PW, "setup_token": BOOTSTRAP_TOKEN})
 check("setup again -> ok", r.json().get("ok") is True)
 check("CANARY: 2FA is still on after setup", c.totp_enabled() and c.totp_secret() == SEC)
 cl.cookies.clear()

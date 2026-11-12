@@ -37,19 +37,19 @@
 # nên tên miền chuyển sang khai ở .env - giống hệt cách bản Hostinger đang làm.
 # ============================================================================
 services:
-  javis:
+  marga:
     # CỐ Ý KHÔNG khai `ports` ở đây: compose NỐI CHỒNG danh sách ports giữa các file -f chứ không
     # thay thế, nên khai lại là ra hai binding cùng một cổng và Docker báo "port is already
     # allocated". Việc thu cổng về loopback làm bằng JAVIS_BIND=127.0.0.1 trong .env (xem đầu file).
     networks:
       - default        # phải liệt kê lại: khai networks ở service là THAY danh sách, không cộng thêm
-      - javis-web
+      - marga-web
     labels:
       # Proxy dùng chung đọc đúng hai nhãn này rồi tự dựng site + xin chứng chỉ.
       caddy: ${DOMAIN_NAME:?DOMAIN_NAME chưa đặt - thêm DOMAIN_NAME=ten-mien-cua-ban vào .env}
       caddy.reverse_proxy: "{{upstreams 7777}}"
 
 networks:
-  javis-web:
+  marga-web:
     external: true
-    name: javis-web
+    name: marga-web

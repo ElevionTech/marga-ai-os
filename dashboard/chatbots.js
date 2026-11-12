@@ -651,22 +651,8 @@
 
   var _langDS = [];
 
-  function htmlNgonNgu(cur) {
-
-    var ra = '<option value="auto"' + (cur === "auto" || !cur ? " selected" : "") +
-
-             '>' + esc(window.t("cb.lang_auto")) + '</option>';
-
-    _langDS.forEach(function (l) {
-
-      ra += '<option value="' + esc(l.ma) + '"' + (l.ma === cur ? " selected" : "") +
-
-            '>' + esc(l.ten) + '</option>';
-
-    });
-
-    return ra;
-
+  function htmlNgonNgu() {
+    return '<option value="en" selected>English</option>';
   }
 
 

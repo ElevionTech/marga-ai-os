@@ -25,6 +25,7 @@ import stat
 import sys
 import tempfile
 from pathlib import Path
+from _fake_cli_exec import register_fake_cli
 
 os.environ["JAVIS_STATE_DIR"] = tempfile.mkdtemp(prefix="javis-agytest-")
 
@@ -64,6 +65,7 @@ def _gia(dong_ra, ma=0, stderr="", help_text="", models_out="", vong_stdin=False
         f"sys.exit({ma})\n",
         encoding="utf-8")
     p.chmod(p.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    register_fake_cli(p)
     return str(p), d
 
 
@@ -76,7 +78,7 @@ def _chay_gia(dong_ra, ma=0, stderr="", help_text="", prompt="xin chào", mode="
     cli, d = _gia(dong_ra, ma, stderr, help_text)
     _reset_cache()
     antigravity_cli.find_antigravity_cli = lambda: cli
-    g = antigravity_cli.AntigravityCLI(cwd="/tmp")
+    g = antigravity_cli.AntigravityCLI(cwd=tempfile.gettempdir())
     g.cli_path = cli
     g.mode = mode
 
@@ -599,7 +601,7 @@ check("CANARY: không dựng file ngữ cảnh khi stdin đã đủ (đường t
 # đắt nhất, nên khoá lại bằng canary.
 _reset_cache()
 antigravity_cli.find_antigravity_cli = lambda: _cli_moi
-_g_co = antigravity_cli.AntigravityCLI(cwd="/tmp")
+_g_co = antigravity_cli.AntigravityCLI(cwd=tempfile.gettempdir())
 _g_co.cli_path = _cli_moi
 _g_co.session_id = "abc"
 _g_co.include_dirs = ["/tmp"]
@@ -607,8 +609,11 @@ _args_co = _g_co._build_args("câu hỏi")
 check("CANARY: khi prompt đi qua dòng lệnh thì `-p` nằm CUỐI (cờ sau nó bị agy bỏ qua)",
       _args_co[-2] == "-p" and _args_co[-1] == "câu hỏi", _args_co[-5:])
 
-check("CANARY: Linux vẫn đi argv như cũ (trần 128KB cho một tham số, chưa chạm)",
-      antigravity_cli._tran_argv() == 120000)
+if os.name != "nt":
+    check("CANARY: Linux vẫn đi argv như cũ (trần 128KB cho một tham số, chưa chạm)",
+          antigravity_cli._tran_argv() == 120000)
+else:
+    print("SKIP Linux argv-limit assertion: this host is Windows")
 try:
     os.name = "nt"
     check("và Windows lấy đúng trần chặt hơn", antigravity_cli._tran_argv() == 30000)
@@ -643,6 +648,7 @@ _cli_choi.write_text(
     "print(json.dumps({'role': 'assistant', 'content': 'Chào anh.'}), flush=True)\n",
     encoding="utf-8")
 _cli_choi.chmod(_cli_choi.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+register_fake_cli(_cli_choi)
 _reset_cache()
 antigravity_cli.find_antigravity_cli = lambda: str(_cli_choi)
 _g_choi = antigravity_cli.AntigravityCLI(cwd=str(_d_choi))
@@ -675,6 +681,7 @@ _cli_bo.write_text(
     "print(json.dumps({'role': 'assistant', 'content': 'Chào anh.'}), flush=True)\n",
     encoding="utf-8")
 _cli_bo.chmod(_cli_bo.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+register_fake_cli(_cli_bo)
 _reset_cache()
 antigravity_cli.find_antigravity_cli = lambda: str(_cli_bo)
 _g_bo = antigravity_cli.AntigravityCLI(cwd=str(_d_bo))
@@ -742,6 +749,7 @@ _cli_cat.write_text(
     "sys.stdout.buffer.write(b[cut:]); sys.stdout.buffer.flush()\n",
     encoding="utf-8")
 _cli_cat.chmod(_cli_cat.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+register_fake_cli(_cli_cat)
 _reset_cache()
 antigravity_cli.find_antigravity_cli = lambda: str(_cli_cat)
 _g_cat = antigravity_cli.AntigravityCLI(cwd=str(_d_cat))
@@ -792,13 +800,21 @@ check("chia thành nhiều mẩu thật (prompt dài hơn một mẩu)", len(_ma
 _d_hong = Path(tempfile.mkdtemp(prefix="javis-fakeagy-hong-"))
 _cli_hong = _d_hong / "agy"
 _cli_hong.write_text(
-    "#!/usr/bin/env python3\nimport sys, json\n"
+    "#!/usr/bin/env python3\nimport sys, json, re\n"
     f"if '--help' in sys.argv[1:]:\n    sys.stdout.write({_HELP_MOI_KHONG_STDIN!r}); sys.exit(0)\n"
     "try:\n    sys.stdin.read()\nexcept Exception:\n    pass\n"
+    "for arg in sys.argv[1:]:\n"
+    "    match = re.search(r'[^\\s]*ngu-canh-[0-9a-f]+\\.md', arg)\n"
+    "    if match:\n"
+    "        print(json.dumps({'event': 'step_update', 'step_update': {'step_type': 'tool', 'state': 'DONE', "
+    "                         'tool_info': {'name': 'read_file', 'parameters': {'Path': match.group(0)}, "
+    "                                       'output': '1 lines, 20 bytes'}}}, ensure_ascii=True), flush=True)\n"
+    "        break\n"
     "print(json.dumps({'role': 'assistant', 'content': 'b\\ufffd\\ufffdo c\\ufffd\\ufffdo'},"
-    " ensure_ascii=False), flush=True)\n",
+    " ensure_ascii=True), flush=True)\n",
     encoding="utf-8")
 _cli_hong.chmod(_cli_hong.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+register_fake_cli(_cli_hong)
 _reset_cache()
 antigravity_cli.find_antigravity_cli = lambda: str(_cli_hong)
 _g_hong = antigravity_cli.AntigravityCLI(cwd=str(_d_hong))
@@ -810,7 +826,8 @@ check("CANARY: chữ về hỏng dấu -> tự đổi sang đường file rồi 
       antigravity_cli.duong_prompt_dai(str(_cli_hong)) == "file",
       antigravity_cli.duong_prompt_dai(str(_cli_hong)))
 check("CANARY: đổi đường vẫn hỏng -> NÓI THẲNG là lỗi nằm trong CLI, không im lặng",
-      "hỏng dấu tiếng Việt" in _txt_hong, repr(_txt_hong[:120]))
+      antigravity_cli._CANH_BAO_HONG_DAU in _txt_hong or
+      antigravity_cli._CANH_BAO_HONG_DAU_EN in _txt_hong, repr(_txt_hong[:120]))
 
 
 # ---- Nửa 2: cơ chế file ngữ cảnh, chạy thật (ép đường bằng biến môi trường) ----
@@ -1048,12 +1065,12 @@ _HELP_EFFORT = (_HELP_MOI + "  --effort <level>   low, medium, high, xhigh\n")
 _reset_cache()
 _cli_e, _d_e = _gia([], help_text=_HELP_EFFORT)
 antigravity_cli.find_antigravity_cli = lambda: _cli_e
-_g_khoa = antigravity_cli.AntigravityCLI(cwd="/tmp", model="gemini-3.8-flash-medium")
+_g_khoa = antigravity_cli.AntigravityCLI(cwd=tempfile.gettempdir(), model="gemini-3.8-flash-medium")
 _g_khoa.cli_path = _cli_e
 _g_khoa.effort = "high"
 check("CANARY: model đã khoá mức nghĩ thì dòng lệnh KHÔNG được có --effort",
       "--effort" not in _g_khoa._build_args("hỏi"), _g_khoa._build_args("hỏi"))
-_g_thuong = antigravity_cli.AntigravityCLI(cwd="/tmp", model="claude-sonnet-4-6")
+_g_thuong = antigravity_cli.AntigravityCLI(cwd=tempfile.gettempdir(), model="claude-sonnet-4-6")
 _g_thuong.cli_path = _cli_e
 _g_thuong.effort = "high"
 check("model thường thì vẫn truyền --effort như cũ (đừng vá quá tay)",
@@ -1080,6 +1097,7 @@ def _gia_xung_effort(dong_ra):
         "sys.exit(0)\n",
         encoding="utf-8")
     p.chmod(p.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    register_fake_cli(p)
     return str(p), d
 
 
@@ -1151,6 +1169,7 @@ def _gia_gay_roi_hoi(so_lan_gay, dong_ra, stderr=_LOI_503, help_text=None):
         "sys.exit(0)\n",
         encoding="utf-8")
     p.chmod(p.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    register_fake_cli(p)
     return str(p), d
 
 
@@ -1213,6 +1232,7 @@ try:
         f"sys.stderr.write({_LOI_503!r}); sys.exit(1)\n",
         encoding="utf-8")
     Path(_cli_t).chmod(Path(_cli_t).stat().st_mode | stat.S_IEXEC)
+    register_fake_cli(_cli_t)
     antigravity_cli.find_antigravity_cli = lambda: _cli_t
     _g_t = antigravity_cli.AntigravityCLI(cwd=str(_d_t))
     _g_t.cli_path = _cli_t
@@ -1244,6 +1264,7 @@ try:
         f"sys.stderr.write({_LOI_HET_GIO!r}); sys.exit(1)\n",
         encoding="utf-8")
     Path(_cli_h).chmod(Path(_cli_h).stat().st_mode | stat.S_IEXEC)
+    register_fake_cli(_cli_h)
     antigravity_cli.find_antigravity_cli = lambda: _cli_h
     _g_h = antigravity_cli.AntigravityCLI(cwd=str(_d_h))
     _g_h.cli_path = _cli_h

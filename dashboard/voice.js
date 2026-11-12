@@ -50,7 +50,7 @@ class JavisVoice {
   }
 
   constructor(opts = {}) {
-    this.lang = opts.lang || "vi-VN";
+    this.lang = opts.lang || "en-US";
     this.inputOnly = !!opts.inputOnly;
     // Đa ngôn ngữ (ô "Ngôn ngữ nghe" = auto): không cố định tiếng nào. this.lang vẫn giữ mã
     // cụ thể gần nhất cho phần ĐỌC; chỉ phần NGHE mới bỏ ghim (xem setRecognitionLang).

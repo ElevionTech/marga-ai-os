@@ -52,17 +52,17 @@ HAT_GIONG = {
                "> Chỉ mục bộ nhớ dài hạn của Javis. Mỗi dòng = 1 ký ức, trỏ tới file trong `facts/`.\n"
                "> Nội dung file này được nạp vào đầu mỗi câu hỏi để Javis nhớ ngữ cảnh.\n\n"
                "_(Chưa có ký ức nào. Javis sẽ học dần sau mỗi hội thoại.)_\n"),
-        "en": ("# Javis Memory - Index\n\n"
-               "> Index of Javis's long-term memory. One line = one memory, pointing to a file in `facts/`.\n"
-               "> This file is loaded at the start of every question so Javis remembers the context.\n\n"
-               "_(No memories yet. Javis learns a little after every conversation.)_\n"),
+        "en": ("# MARGA Memory - Index\n\n"
+               "> Index of MARGA AI OS long-term memory. One line = one memory, pointing to a file in `facts/`.\n"
+               "> This file is loaded at the start of every question to provide relevant context.\n\n"
+               "_(No memories yet. MARGA learns from durable information over time.)_\n"),
     },
     "javis_readme": {
-        "vi": ("# Javis\n\nLớp điều phối của Javis OS trong vault này.\n\n"
+        "vi": ("# MARGA AI OS\n\nLớp điều phối của MARGA AI OS trong vault này.\n\n"
                "- `agents/` - các Agent (vai trò + skills + bộ nhớ riêng)\n"
                "- `workflows/` - quy trình nhiều agent (status active/off)\n"
                "- Skills dùng chung ở `skills/` (tự mirror sang `.claude/skills` cho Claude Code native)\n"),
-        "en": ("# Javis\n\nThe Javis OS orchestration layer of this vault.\n\n"
+        "en": ("# MARGA AI OS\n\nThe MARGA AI OS orchestration layer of this vault.\n\n"
                "- `agents/` - Agents (role + skills + their own memory)\n"
                "- `workflows/` - multi-agent workflows (status active/off)\n"
                "- Shared skills live in `skills/` (mirrored to `.claude/skills` for native Claude Code)\n"),
@@ -112,7 +112,9 @@ _TEN_THEO_VI = {ban["vi"]: ten for ten, ban in HAT_GIONG.items()}
 
 
 def _ma(ma: str | None = None) -> str:
-    return lang_registry.chuan_hoa(ma or "") or localefmt.ngon_ngu_giao_dien()
+    # New built-in brain templates are English-only. Existing user-edited brain files
+    # are never rewritten by seed creation.
+    return "en"
 
 
 def ban(ten: str, ma: str | None = None) -> str:

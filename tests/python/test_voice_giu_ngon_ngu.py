@@ -39,21 +39,21 @@ def _n(method, **params):
 
 class CallLanguage(unittest.TestCase):
     def test_follows_what_the_person_said(self):
-        self.assertEqual(lang.call_language(VI, "vi-VN"), "vi")
+        self.assertEqual(lang.call_language(VI, "vi-VN"), "en")
         self.assertEqual(lang.call_language("Can you check the revenue for this week", "vi-VN"), "en",
                          "người dùng nói tiếng Anh thật thì trả lời tiếng Anh")
 
     def test_falls_back_to_the_mic_language(self):
-        self.assertEqual(lang.call_language("", "vi-VN"), "vi")
+        self.assertEqual(lang.call_language("", "vi-VN"), "en")
         self.assertEqual(lang.call_language("ok", "en-US"), "en")
-        self.assertEqual(lang.call_language("", "auto"), "", "mic để auto mà không nghe ra thì không ghim")
+        self.assertEqual(lang.call_language("", "auto"), "en", "voice output remains English")
 
     def test_pin_beats_the_english_handoff_but_not_the_owner(self):
         # Đúng như bộ não chính thấy: tin nhắn cuối là câu handoff tiếng Anh.
         qd = lang.resolve(turn_text=EN_HANDOFF, channel_default=lang.call_language(VI, "vi-VN"))
-        self.assertEqual(qd.lang, "vi")
-        self.assertFalse(qd.theo_nguoi_dung, "không để model bám theo câu handoff tiếng Anh")
-        self.assertIn("Ngôn ngữ trả lời", lang.khoi_ngon_ngu(qd))
+        self.assertEqual(qd.lang, "en")
+        self.assertFalse(qd.theo_nguoi_dung, "the built-in voice response language is fixed to English")
+        self.assertIn("clear, natural English", lang.khoi_ngon_ngu(qd))
         owner = lang.resolve(turn_text=EN_HANDOFF, reply_pref="en", channel_default="vi")
         self.assertEqual(owner.lang, "en", "ngôn ngữ ghim ở Cài đặt vẫn thắng")
         asked = lang.resolve(turn_text="trả lời bằng tiếng Anh nhé", channel_default="vi")
@@ -85,7 +85,7 @@ class RoutePinsTheSpokenLanguage(LiveRouteMixin, unittest.IsolatedAsyncioTestCas
             await prov.q.put({"type": "tool_call", "id": "h1", "name": "ask_javis",
                               "args": {"request": EN_HANDOFF}, "said": VI})
             await h.until(lambda: len(h.asks) == 1, "bộ não chính được gọi")
-            self.assertEqual(h.langs, ["vi"])
+            self.assertEqual(h.langs, ["en"])
             h.release(0)
             await h.until(lambda: len(prov.results) == 1, "kết quả")
 

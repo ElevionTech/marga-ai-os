@@ -57,7 +57,7 @@ check("câu quá ngắn thì KHÔNG đoán bừa", lang_mod.detect("ok")[0] == "
 
 
 # ============================================================
-# 2. Chốt ngôn ngữ: ai GHIM, và khi không ai ghim thì ai lo
+# 2. Built-in responses remain English; input detection remains available to safety gates.
 # ============================================================
 # Đổi ở 0.35.0: `resolve` KHÔNG còn tự chốt ngôn ngữ trả lời khi không có ai ghim. Nó trả
 # `theo_nguoi_dung=True` và prompt bảo model bám theo thứ tiếng người dùng vừa viết.
@@ -65,66 +65,17 @@ check("câu quá ngắn thì KHÔNG đoán bừa", lang_mod.detect("ok")[0] == "
 # Vì sao bỏ: bản trước tự dò tự chốt, và đo được nó làm tệ hơn model - dò tiếng Anh 16/18,
 # còn người viết tiếng Thái/Nhật/Pháp/Tây Ban Nha thì LUÔN bị trả lời tiếng Việt vì mấy thứ
 # tiếng đó không có trong sổ đăng ký. Model bám đúng cho mọi thứ tiếng, miễn phí.
-_d = lang_mod.resolve(turn_text="trả lời bằng tiếng Anh từ giờ nhé")
-check("lệnh thẳng trong lượt thắng tất cả",
-      _d.lang == "en" and _d.source == "turn" and not _d.theo_nguoi_dung)
+for _c in ("trả lời bằng tiếng Việt", "Please answer in French", "こんにちは"):
+    _d = lang_mod.resolve(turn_text=_c, reply_pref="vi", chatbot_pin="fr", brain_pin="ja")
+    check(f"assistant output is English regardless of legacy pins or input: {_c}",
+          _d.lang == "en" and not _d.theo_nguoi_dung)
+    check("input detection remains available", _d.lang_cau_hoi == lang_mod.detect(_c)[0])
 
-_d = lang_mod.resolve(turn_text="dịch bài này sang tiếng Anh giúp anh")
-check("'dịch bài này sang tiếng Anh' KHÔNG phải lệnh đổi ngôn ngữ", _d.source != "turn")
-# 0.65.29: câu THAN về ngôn ngữ không phải lệnh đổi sang ngôn ngữ đó. Chủ dự án hỏi "sao em lại
-# trả lời bằng tiếng Anh vậy?" thì bản cũ ghim tiếng Anh cho lượt đó, tức là trả lời câu than
-# bằng đúng thứ tiếng đang bị than.
-for _cau in ("sao em lại trả lời bằng tiếng Anh vậy?", "tại sao em nói tiếng Anh",
-             "vì sao lại trả lời bằng tiếng Anh", "why did you reply in English?",
-             "sao em trả lời bằng tiếng Anh"):
-    _d = lang_mod.resolve(turn_text=_cau)
-    check(f"câu than '{_cau}' KHÔNG ghim ngôn ngữ đó", not (_d.source == "turn" and _d.lang == "en"))
-_d = lang_mod.resolve(turn_text="Ý là em trả lời anh bằng tiếng Việt chứ sao em lại trả lời bằng tiếng Anh vậy?")
-check("than tiếng Anh kèm lệnh tiếng Việt -> ghim tiếng Việt", _d.lang == "vi" and _d.source == "turn")
-_d = lang_mod.resolve(turn_text="em trả lời bằng tiếng Anh được không")
-check("nhờ trả lời tiếng Anh dạng hỏi lịch sự vẫn là lệnh", _d.lang == "en" and _d.source == "turn")
-
-check("chatbot ghim thắng cài đặt của chủ",
-      lang_mod.resolve(turn_text="anh muốn xem doanh thu tháng này",
-                       chatbot_pin="en", reply_pref="vi").lang == "en")
-
-# KHÔNG ai ghim gì -> để model bám. Đây là đường đi của gần như mọi lượt chat.
-for _c in ("anh muốn xem doanh thu tháng này thế nào",
-           "please show me the cost breakdown in detail",
-           "สรุปยอดขายวันนี้ให้หน่อยครับ",
-           "今日の売上はいくらですか",
-           "les ventes du mois de juin sont bonnes"):
-    _d = lang_mod.resolve(turn_text=_c)
-    check(f"không ghim -> model tự bám: {_c[:32]}", _d.theo_nguoi_dung)
-
-# Ghim thì phải NÊU TÊN, và cờ bám phải TẮT - nếu không thì cái ghim vô nghĩa.
-for _kw, _mong in ((dict(reply_pref="en"), "en"),
-                   (dict(chatbot_pin="vi"), "vi"),
-                   (dict(brain_pin="en"), "en"),
-                   (dict(channel_default="vi"), "vi")):
-    _d = lang_mod.resolve(turn_text="anh muốn xem doanh thu", **_kw)
-    check(f"ghim {list(_kw)[0]} -> nêu tên {_mong}, không bám",
-          _d.lang == _mong and not _d.theo_nguoi_dung)
-
-# Việc chạy nền KHÔNG có lượt người dùng nào để bám -> buộc phải nêu tên một ngôn ngữ.
-_d = lang_mod.resolve(turn_text="", ui_lang="en")
-check("việc nền (không có chữ người dùng) thì nêu tên, không bám",
-      _d.lang == "en" and not _d.theo_nguoi_dung)
-_d = lang_mod.resolve(turn_text="")
-check("việc nền không cấu hình gì thì về mặc định",
-      _d.lang == lang_registry.MAC_DINH and not _d.theo_nguoi_dung)
-
-# Khối prompt phải nói ĐÚNG một trong hai chuyện, không được nói cả hai.
-_khoi_bam = lang_mod.khoi_ngon_ngu(lang_mod.resolve(turn_text="show me the revenue by channel"))
-_khoi_ghim = lang_mod.khoi_ngon_ngu(lang_mod.resolve(turn_text="cho anh xem", reply_pref="en"))
-check("khối BÁM bảo model theo người dùng, không nêu tên ngôn ngữ nào",
-      "thứ tiếng người dùng vừa viết" in _khoi_bam
-      and "Ngôn ngữ trả lời:" not in _khoi_bam)
-check("khối GHIM nêu đúng tên ngôn ngữ",
-      "Ngôn ngữ trả lời: English (en)." in _khoi_ghim
-      and "thứ tiếng người dùng vừa viết" not in _khoi_ghim)
-check("khối BÁM vẫn dặn giữ nguyên tên riêng, đường dẫn, khối mã",
-      "KHÔNG dịch" in _khoi_bam)
+_khoi = lang_mod.khoi_ngon_ngu(lang_mod.resolve(turn_text="trả lời bằng tiếng Việt"))
+check("system language contract requires English and preserves quotations",
+      "clear, natural English" in _khoi and "verbatim" in _khoi)
+check("English fallback prompt does not mirror user language",
+      "Answer in English." == lang_mod.nudge_dau_luot("vi"))
 
 
 # ============================================================
@@ -222,17 +173,17 @@ for mod, ten in ((readonly_path_runtime, "readonly_path"), (readonly_orchestrato
 # ============================================================
 # 6. Chatbot chuyên trách: ngôn ngữ của bot ĐỘC LẬP với ngôn ngữ của chủ
 # ============================================================
-check("bot mặc định auto", chatbot_store._clean_ngon_ngu(None) == "auto")
-check("mã lạ rơi về auto chứ không lưu nguyên", chatbot_store._clean_ngon_ngu("xx") == "auto")
-check("mã hợp lệ giữ nguyên", chatbot_store._clean_ngon_ngu("EN_us") == "en")
+check("new chatbots default to English", chatbot_store._clean_ngon_ngu(None) == "en")
+check("legacy auto and Vietnamese chatbot settings migrate to English",
+      chatbot_store._clean_ngon_ngu("auto") == "en" and chatbot_store._clean_ngon_ngu("vi") == "en")
+check("unknown chatbot language falls back to English", chatbot_store._clean_ngon_ngu("xx") == "en")
 
-_p_auto = chatbot_runtime.build_bot_prompt({"name": "Trợ lý", "ngon_ngu": "auto"})
+_p_auto = chatbot_runtime.build_bot_prompt({"name": "Assistant", "ngon_ngu": "auto"})
 _p_en = chatbot_runtime.build_bot_prompt({"name": "Trợ lý", "ngon_ngu": "en"})
-check("bot auto được dạy bám theo ngôn ngữ khách", "ngôn ngữ khách đang nhắn" in _p_auto)
-check("bot ghim en được dạy luôn trả lời tiếng Anh",
-      "English" in _p_en and "Answer in English." in _p_en)
-check("prompt bot LUÔN có một dòng ngôn ngữ, kể cả khi không khai gì",
-      "NGÔN NGỮ" in chatbot_runtime.build_bot_prompt({"name": "Trợ lý"}))
+check("legacy auto bot prompt is English-only", "clear, natural English" in _p_auto)
+check("English bot prompt keeps the same policy", "clear, natural English" in _p_en)
+check("prompt bot ALWAYS carries English policy",
+      "English-only product policy" in chatbot_runtime.build_bot_prompt({"name": "Assistant"}))
 
 
 # ============================================================
@@ -240,7 +191,7 @@ check("prompt bot LUÔN có một dòng ngôn ngữ, kể cả khi không khai g
 # ============================================================
 check("chuẩn hoá được mã dạng đầy đủ", lang_registry.chuan_hoa("vi-VN") == "vi")
 check("mã lạ trả rỗng chứ không tự rơi về mặc định", lang_registry.chuan_hoa("xx") == "")
-check("get() không bao giờ ném lỗi", lang_registry.get("xx").code == "vi")
+check("get() falls back to English", lang_registry.get("xx").code == "en")
 check("ElevenLabs cố ý để rỗng (giọng của nó vốn đa ngôn ngữ)",
       lang_registry.giong_tts("en", "elevenlabs") == "")
 check("Edge có giọng riêng cho từng ngôn ngữ",

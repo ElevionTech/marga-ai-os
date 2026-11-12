@@ -65,8 +65,14 @@ v.put("wh_1/a/crm/X-Api-Key", "sk-live-SECRET")
 check("vault: round trip", v.get("wh_1/a/crm/X-Api-Key") == "sk-live-SECRET")
 raw = (SD / "webhook_secrets.json").read_text()
 check("vault: the value is not in the file in clear", "sk-live-SECRET" not in raw)
-check("vault: both files are mode 600", mode(SD / "webhook_secrets.json") == 0o600 and mode(SD / "webhook_keys.json") == 0o600,
-      (oct(mode(SD / "webhook_secrets.json")), oct(mode(SD / "webhook_keys.json"))))
+if os.name == "nt":
+    # Windows does not expose POSIX mode-600 semantics through stat.S_IMODE.
+    # Keep the runtime chmod policy unchanged and require this assertion on Linux.
+    print("SKIP vault POSIX mode-600 assertion: verify on Linux; Windows ACLs are not represented by stat.S_IMODE")
+else:
+    check("vault: both files are mode 600",
+          mode(SD / "webhook_secrets.json") == 0o600 and mode(SD / "webhook_keys.json") == 0o600,
+          (oct(mode(SD / "webhook_secrets.json")), oct(mode(SD / "webhook_keys.json"))))
 d = json.loads(raw)
 d["items"]["wh_2/verify"] = d["items"]["wh_1/a/crm/X-Api-Key"]
 (SD / "webhook_secrets.json").write_text(json.dumps(d))

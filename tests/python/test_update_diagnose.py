@@ -5,6 +5,7 @@ import sys
 import tempfile
 
 os.environ.setdefault("JAVIS_STATE_DIR", tempfile.mkdtemp(prefix="javis-upd-"))
+os.environ.pop("MARGA_UPDATE_REPOSITORY", None)
 import updater  # noqa: E402
 
 fails = []
@@ -17,13 +18,12 @@ def check(name, condition):
 
 
 message = updater.chan_doan_pull("Already up to date.")
-check("đã mới nhất: nêu đúng nguồn phát hành chính thức",
-      "github.com/blogminhquy/javis-os.git/main" in message)
-check("đã mới nhất: hướng dẫn Docker nếu cần", "Docker" in message)
+check("chưa cấu hình: không gán nhầm nguồn phát hành", "MARGA" in message and ("nguồn cập nhật" in message or "update source" in message.lower()))
+check("chưa cấu hình: nói rõ cập nhật chưa khả dụng", "MARGA" in message and "cấu hình" in message)
 check("không khuyên bỏ nhánh riêng", "checkout main" not in message and "reset --hard" not in message)
 
 message = updater.chan_doan_pull("Merge made by the 'ort' strategy.")
-check("merge rồi mà VERSION không tăng: nói rõ phiên bản", "VERSION" in message)
+check("không có nguồn thì chẩn đoán vẫn nói rõ cập nhật MARGA chưa khả dụng", "MARGA" in message)
 for output in ("", None, "   "):
     check("đầu vào rỗng vẫn có chẩn đoán", bool(updater.chan_doan_pull(output)))
 
@@ -51,8 +51,7 @@ check("lỗi lạ không bịa nguyên nhân",
 
 os.environ["JAVIS_UPDATE_REMOTE"] = "some-fork"
 os.environ["JAVIS_UPDATE_BRANCH"] = "stable"
-check("nút cập nhật luôn dùng cùng nguồn với /version",
-      updater.release_source() == ("https://github.com/blogminhquy/javis-os.git", "main"))
+check("nút cập nhật không có nguồn mặc định", updater.release_source() == ("", ""))
 os.environ.pop("JAVIS_UPDATE_REMOTE", None)
 os.environ.pop("JAVIS_UPDATE_BRANCH", None)
 

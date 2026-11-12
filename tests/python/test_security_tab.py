@@ -234,11 +234,11 @@ check("claude_cli installs the hook where it builds every Claude engine",
       "claude_secret_hook.install()" in (ROOT / "server" / "claude_cli.py").read_text(encoding="utf-8"))
 
 # ============================================================
-# 7. Hostinger compose: 7777 only on 127.0.0.1 once a domain serves HTTPS
+# 7. MARGA production compose stays loopback-only regardless of domain routing
 # ============================================================
 yml = (ROOT / "docker-compose.hostinger.yml").read_text(encoding="utf-8")
-check("Hostinger compose binds 7777 to 127.0.0.1 when DOMAIN_NAME is set",
-      '"${DOMAIN_NAME:+127.0.0.1:}${JAVIS_HOST_PORT:-7777}:7777"' in yml)
+check("MARGA Hostinger compose binds 7777 to loopback",
+      '"127.0.0.1:${MARGA_HOST_PORT:-7777}:7777"' in yml)
 
 # ============================================================
 # 8. Dashboard: Security tab with devices and history

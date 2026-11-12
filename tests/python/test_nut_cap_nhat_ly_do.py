@@ -124,39 +124,19 @@ check("thiếu mã lý do vẫn có câu dự phòng",
       re.search(r'docker compose up -d --pull always', CON) is not None)
 
 # ============================================================
-# 4. Tiền đề: Watchtower ĐI KÈM SẴN, cài mới là cập nhật được ngay
+# 4. MARGA updates remain unavailable until an approved source exists
 # ============================================================
-# Đây là thay đổi của 0.55.56, và chủ repo báo đúng cái giá của thiết kế cũ (2026-09-08): "một
-# số cài đặt hostinger mới không tự động cập nhật, bị thiếu watchtower". Trước đó Watchtower
-# nằm trong `profiles: ["update"]` của compose VPS (lệnh `docker compose up -d` KHÔNG bật nó)
-# và không có mặt trong compose Hostinger - tức nút cập nhật chỉ hiện trên số ít máy, mà một
-# cái nút như vậy thì coi như không có.
-#
-# Canh thẳng vào file compose, vì mọi lời khuyên trong app đều dựa trên tiền đề này: ngày nào
-# ai đó đẩy Watchtower về sau một profile nữa thì câu chữ ở dashboard thành sai, không ai báo.
 COMPOSE = io.open(os.path.join(ROOT, "docker-compose.yml"), encoding="utf-8").read()
-check("CANARY: watchtower KHÔNG còn nấp sau profile (up -d là phải có nút)",
-      re.search(r'watchtower:[\s\S]{0,600}profiles:', COMPOSE) is None)
+check("local compose has no Watchtower service", re.search(r'^\s{2}watchtower:', COMPOSE, re.M) is None)
 HOST = io.open(os.path.join(ROOT, "docker-compose.hostinger.yml"), encoding="utf-8").read()
-check("CANARY: stack Hostinger CÓ service watchtower",
-      re.search(r'^\s{2}watchtower:', HOST, re.M) is not None)
-check("CANARY: Hostinger đặt WATCHTOWER_TOKEN cho app (thiếu là app tưởng không có Watchtower)",
-      "WATCHTOWER_TOKEN" in HOST)
-# Tự cập nhật (không cần bấm nút) phải TẮT mặc định: bật ngầm là app tự khởi động lại giữa
-# chừng một việc nền, không ai chọn điều đó.
-for _f, _t in (("docker-compose.yml", COMPOSE), ("docker-compose.hostinger.yml", HOST)):
-    check(f"{_f}: có cửa bật tự cập nhật theo chu kỳ", "WATCHTOWER_HTTP_API_PERIODIC_POLLS" in _t)
-    check(f"CANARY: {_f} để tự cập nhật TẮT mặc định",
-          "JAVIS_AUTO_UPDATE:-false" in _t)
-
-# Tài liệu phải ghi cùng một lệnh - lệch nhau là người dùng gõ theo tài liệu rồi vẫn không có nút.
-# Lệnh `--profile update` nay là ĐƯỜNG LUI cho stack cũ, không còn là câu trả lời chính, nhưng
-# vẫn phải có mặt: người đang chạy compose cũ mà không được chỉ lệnh nào thì vẫn tắc như cũ.
-for f in ("DEPLOY.md", "docs/01-bat-dau-thiet-lap.md", "docs/17-khac-phuc-su-co.md"):
-    t = io.open(os.path.join(ROOT, f), encoding="utf-8").read()
-    check(f"{f} ghi đúng lệnh bật Watchtower cho stack cũ",
-          "docker compose --profile update up -d" in t)
-    check(f"{f} nói cách TỰ cập nhật khỏi bấm nút", "JAVIS_AUTO_UPDATE" in t)
+APP = io.open(os.path.join(ROOT, "server", "main.py"), encoding="utf-8").read()
+check("production compose has no Watchtower service or token", "WATCHTOWER" not in HOST.lower())
+check("public production requires an MARGA image and owner token",
+      "${MARGA_IMAGE:?" in HOST and "${MARGA_SETUP_TOKEN:?" in HOST)
+check("application update endpoint reports unavailability without a MARGA source",
+      "MARGA updates are unavailable until MARGA_UPDATE_REPOSITORY is configured" in APP)
+check("standalone update script cannot run inherited git pull", "git pull" not in
+      io.open(os.path.join(ROOT, "update.sh"), encoding="utf-8").read())
 
 _sc = io.open(os.path.join(ROOT, "docs", "17-khac-phuc-su-co.md"), encoding="utf-8").read()
 check("tài liệu sự cố có bảng phân biệt ba kiểu 'not found'",

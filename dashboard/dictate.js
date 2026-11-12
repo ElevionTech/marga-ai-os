@@ -125,7 +125,7 @@
       var l = (document.documentElement.getAttribute("lang") || "").toLowerCase();
       if (l.indexOf("en") === 0) return "en-US";
     } catch (e) { /* node */ }
-    return "vi-VN";
+    return "en-US";
   }
 
   function pageHidden() {

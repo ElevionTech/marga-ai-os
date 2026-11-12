@@ -176,7 +176,7 @@ const orbState = document.getElementById("orbState");
 // nên mọi truy cập phải guard để trang không chết trắng nếu thiếu.
 fetch("/config").then(r => r.json()).then(cfg => {
   const wn = document.getElementById("workspaceName");
-  if (wn) wn.textContent = cfg.workspace_name || "Javis OS";
+  if (wn) wn.textContent = cfg.workspace_name || "MARGA AI OS";
 }).catch(() => {});
 
 // ============================================
@@ -202,7 +202,7 @@ function setOrbState(state, label, petState) {
 // ============================================
 const attention = new window.JavisVoiceAttention.Attention();
 const voice = new JavisVoice({
-  lang: "vi-VN",
+  lang: "en-US",
   // KHÔNG bật preserveTranscript (0.64.73). 0.64.32 bật nó: chữ Groq Whisper chỉ còn là "gợi
   // ý", tin gửi đi luôn là chữ Chrome, nên người đã CHỌN Groq cũng chỉ nhận được bản Chrome
   // tiếng Việt chép tiếng Anh thành "clash", "cloud Play". Chủ dự án 27/09: "lần trước có bản
@@ -682,7 +682,7 @@ let _liveToolCount = 0;
 // bắt buộc gọi "Javis" nữa, vì trình duyệt hay chép tên thành "David" và cuộc gọi không nối lại được.
 // Câu đó đi làm lời đầu của phiên mới (batLive) nên không mất chữ.
 const liveWake = new JavisVoice({
-  lang: "vi-VN",
+  lang: "en-US",
   inputOnly: true,
   endpointDelay: text => doTreChotCauCho(text),
   onInterim: text => {
@@ -5351,7 +5351,7 @@ if (document.getElementById("settingsBtn")) {
 
   document.getElementById("saveGeneral").addEventListener("click", (e) => {
     _saveSetting("general", { workspace_name: document.getElementById("setWsName").value.trim() }, e.target)
-      .then(() => { const wn = document.getElementById("workspaceName"); if (wn) wn.textContent = document.getElementById("setWsName").value.trim() || "Javis OS"; });
+      .then(() => { const wn = document.getElementById("workspaceName"); if (wn) wn.textContent = document.getElementById("setWsName").value.trim() || "MARGA AI OS"; });
   });
   document.getElementById("saveModel").addEventListener("click", (e) => {
     const sel = document.getElementById("setOrModelSel");
@@ -5415,10 +5415,11 @@ if (document.getElementById("settingsBtn")) {
       if (!pass || pass.length < 8) { bao(false, window.t("app.pw_min8")); return; }
       if (pass !== pass2) { bao(false, window.t("app.pw_mismatch")); return; }
       const fd = new FormData(); fd.append("username", user || "admin"); fd.append("password", pass);
+      fd.append("setup_token", document.getElementById("setAuthBootstrapToken")?.value || "");
       try {
         const d = await (await fetch("/auth/setup", { method: "POST", body: fd })).json();
         bao(!!d.ok, d.ok ? window.t("app.pw_set_ok") : (d.error || window.t("app.err_low")));
-        if (d.ok) { document.getElementById("setAuthPass").value = ""; if (pass2El) pass2El.value = ""; openSettings(); }
+        if (d.ok) { document.getElementById("setAuthPass").value = ""; if (pass2El) pass2El.value = ""; const setupToken = document.getElementById("setAuthBootstrapToken"); if (setupToken) setupToken.value = ""; openSettings(); }
       } catch (err) { bao(false, window.t("app.err_net_low")); }
       return;
     }
@@ -5535,10 +5536,9 @@ if (document.getElementById("wzFinish")) {
     }
     try {
       if (pass) {
-        const d = await (await fetch("/auth/setup", { method: "POST", body: _fd({ username: user || "admin", password: pass }) })).json();
-        // Mã thiết lập đã bỏ (0.64.47): lần đầu chỉ cần tên + mật khẩu. Lỗi còn lại là mật
-        // khẩu (quá ngắn...) nên kéo về đúng ô mật khẩu.
-        if (!d.ok) { return _soiOTrong(document.getElementById("wzPass"), d.error || window.t("app.wz_pw_err")); }
+        const setupToken = document.getElementById("wzBootstrapToken")?.value || "";
+        const d = await (await fetch("/auth/setup", { method: "POST", body: _fd({ username: user || "admin", password: pass, setup_token: setupToken }) })).json();
+        if (!d.ok) { return _soiOTrong(document.getElementById(setupToken ? "wzBootstrapToken" : "wzPass"), d.error || window.t("app.wz_pw_err")); }
       }
       // Timezone: what "today" means for every report and reminder from the first chat on. Saved after the account so the
       // call is authorised. Not a stop: the account already exists by now, and a refusal (a name the server's tz database

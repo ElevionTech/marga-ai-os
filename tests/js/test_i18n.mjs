@@ -26,7 +26,7 @@ function check(ten, ok, chi_tiet = "") {
 }
 
 const doc = (f) => JSON.parse(fs.readFileSync(path.join(I18N, f), "utf8"));
-const vi = doc("vi.json");
+const vi = doc("vi.json"); // English compatibility alias retained for existing modules.
 const en = doc("en.json");
 
 // ---- 1. Khớp key ----
@@ -36,6 +36,7 @@ const thieu = kVi.filter((k) => !(k in en));
 const thua = kEn.filter((k) => !(k in vi));
 
 check("vi.json không rỗng", kVi.length > 20);
+check("legacy vi.json path serves English only", JSON.stringify(vi) === JSON.stringify(en));
 // Thiếu key ở bản dịch KHÔNG phải lỗi chết người (nó suy biến về tiếng Việt), nhưng vẫn báo
 // để người dịch biết còn nợ gì. Ở giai đoạn này giữ mức cảnh báo cứng cho gọn.
 check("en.json không thiếu key nào của vi.json", thieu.length === 0, thieu.slice(0, 8).join(", "));
@@ -63,7 +64,7 @@ for (const [ten, o] of [["vi.json", vi], ["en.json", en]]) {
 // Chép nguyên tiếng Việt sang en.json thì test khớp key vẫn xanh mà người dùng vẫn thấy
 // tiếng Việt. Bắt bằng dấu riêng của tiếng Việt; tên riêng ("Javis", "Telegram") không có dấu
 // nên không dính.
-const DAU_VIET = /[ăđơưảãạằắẳẵặầấẩẫậẻẽẹềếểễệỉĩịỏõọồốổỗộờớởỡợủũụừứửữựỳỷỹỵ]/i;
+const DAU_VIET = /[\u0103\u0111\u01a1\u01b0\u1ea3\u00e3\u1ea1\u1eb1\u1eaf\u1eb3\u1eb5\u1eb7\u1ea7\u1ea5\u1ea9\u1eab\u1ead\u1ebb\u1ebd\u1eb9\u1ec1\u1ebf\u1ec3\u1ec5\u1ec7\u1ec9\u0129\u1ecb\u1ecf\u00f5\u1ecd\u1ed3\u1ed1\u1ed5\u1ed7\u1ed9\u1edd\u1edb\u1edf\u1ee1\u1ee3\u1ee7\u0169\u1ee5\u1eeb\u1ee9\u1eed\u1eef\u1ef1\u1ef3\u00fd\u1ef7\u1ef9\u1ef5\u0102\u0110\u01a0\u01af\u1ea2\u00c3\u1ea0\u1eb0\u1eae\u1eb2\u1eb4\u1eb6\u1ea6\u1ea4\u1ea8\u1eaa\u1eac\u1eba\u1ebc\u1eb8\u1ec0\u1ebe\u1ec2\u1ec4\u1ec6\u1ec8\u0128\u1eca\u1ece\u00d5\u1ecc\u1ed2\u1ed0\u1ed4\u1ed6\u1ed8\u1edc\u1eda\u1ede\u1ee0\u1ee2\u1ee6\u0168\u1ee4\u1eea\u1ee8\u1eec\u1eee\u1ef0\u1ef2\u00dd\u1ef6\u1ef8\u1ef4]/u;
 const chuaDich = Object.entries(en).filter(([, v]) => DAU_VIET.test(String(v)));
 check("en.json không còn chuỗi tiếng Việt", chuaDich.length === 0,
       chuaDich.map(([k]) => k).slice(0, 6).join(", "));
@@ -142,10 +143,11 @@ for (const [ten, o] of [["vi.json", vi], ["en.json", en]]) {
 // mỗi tầng một canary:
 {
   const idx = fs.readFileSync(path.join(ROOT, "dashboard", "i18n", "index.js"), "utf8");
-  check("index.js fetch từ điển với cache: no-cache (luôn hỏi lại server, 304 là rẻ)",
-        /fetch\("\/static\/i18n\/" \+ ma \+ "\.json", \{ cache: "no-cache" \}\)/.test(idx));
-  check("applyDom KHÔNG ghi đè khi thiếu bản dịch (giữ chữ có sẵn thay vì in mã khoá)",
-        idx.includes('v === el.getAttribute(attr) ? null : v'));
+  check("index.js loads only the English dictionary with no-cache",
+        /fetch\("\/static\/i18n\/en\.json", \{ cache: "no-cache" \}\)/.test(idx)
+        && !/fetch\([^\n]*vi\.json/.test(idx));
+  check("missing translations become readable English labels",
+        idx.includes('function humanize(key)') && idx.includes('el.textContent = t(key)'));
 
   const mainPy = fs.readFileSync(path.join(ROOT, "server", "main.py"), "utf8");
   check("server đóng dấu Cache-Control: no-cache cho /static/i18n/*.json",

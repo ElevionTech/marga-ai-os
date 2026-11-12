@@ -27,7 +27,6 @@ from typing import Any, Dict, List, Optional
 import brain_ident       # one brain, many spellings (#716)
 import channel_accounts   # tài khoản kênh dạng token (0.61.0): bot chỉ TRỎ tới, không giữ token
 import channels          # sổ đăng ký kênh: nơi duy nhất biết kênh nào gắn được bot
-import lang_registry   # sổ đăng ký ngôn ngữ: hợp lệ hoá trường ngon_ngu của bot
 
 from config import STATE_DIR
 import localefmt
@@ -322,19 +321,8 @@ def _clean_kenh(v: Any) -> str:
 
 
 def _clean_ngon_ngu(v: Any) -> str:
-    """Ngôn ngữ bot trả lời khách: "auto" hoặc một mã trong sổ đăng ký.
-
-    Mặc định "auto" (bám theo ngôn ngữ khách nhắn) chứ KHÔNG bám ngôn ngữ của chủ shop. Đây
-    là cả lý do trường này tồn tại: bot phục vụ NGƯỜI LẠ, và chủ người Việt bán hàng cho khách
-    Nhật thì ngôn ngữ của chủ là thông tin sai để suy ra ngôn ngữ của bot.
-
-    Mã lạ rơi về "auto" chứ không lưu nguyên, cùng lý do với `_clean_kenh`: một mã không có
-    trong sổ đăng ký làm bot nói sai ngôn ngữ với khách thật mà không báo lỗi gì.
-    """
-    s_ = str(v or "").strip().lower()
-    if s_ in ("", "auto"):
-        return "auto"
-    return lang_registry.chuan_hoa(s_) or "auto"
+    """Built-in customer-facing bots use English, including records saved by older versions."""
+    return "en"
 
 
 # Active hours (0.130.0): {"tu": "HH:MM", "den": "HH:MM"} in the configured timezone (`localefmt.tz()`).

@@ -295,9 +295,9 @@
                           new Promise(function (r) { setTimeout(r, 1000); })]);
     } catch (e) {}
     if (id !== generation) return false;
-    var sid = "", brain = "brain", language = "vi-VN";
+    var sid = "", brain = "brain", language = "en-US";
     try { sid = (opts.sessionId && opts.sessionId()) || ""; brain = (opts.brain && opts.brain()) || "brain"; } catch (e) {}
-    try { language = (typeof opts.language === "function" ? opts.language() : opts.language) || "vi-VN"; } catch (e) {}
+    try { language = "en-US"; } catch (e) {}
     var proto = location.protocol === "https:" ? "wss://" : "ws://";
     try {
       ws = new WebSocket(proto + location.host + "/ws/voice-live?session_id=" + encodeURIComponent(sid) + "&brain=" + encodeURIComponent(brain) + "&lang=" + encodeURIComponent(language));

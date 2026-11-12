@@ -1,36 +1,40 @@
-# ============================================================================
-# Javis OS - BUILD TỪ SOURCE (thay vì pull image GHCR).
-#   docker compose -f docker-compose.build.yml up -d --build
-# Dùng khi: tự host registry riêng, fork sửa code, hoặc test image trước khi đẩy.
-# ============================================================================
+# Explicit local source build; uses only this checkout and MARGA-owned volumes.
 services:
-  javis:
+  marga:
     build:
       context: .
       args:
         CLAUDE_CLI_VERSION: ${CLAUDE_CLI_VERSION:-latest}
-    image: ghcr.io/blogminhquy/javis-os:latest
-    container_name: ${JAVIS_NAME:-javis}          # đổi trong .env khi chạy nhiều bản trên một máy
+    image: marga-ai-os:local
+    pull_policy: build
+    container_name: ${MARGA_NAME:-marga-ai-os}
     restart: unless-stopped
-    env_file:
-      - path: .env
-        required: false
+    environment:
+      JAVIS_STATE_DIR: /data/state
+      MARGA_STATE_DIR: /data/state
+      JAVIS_REQUIRE_LOGIN: "1"
+      BRAINS_DIR: /brains
+      BRAIN_PATH: /data/brain
+      OBSIDIAN_VAULT_PATH: /data/vault
+      MARGA_SETUP_TOKEN: ${MARGA_SETUP_TOKEN:?Set a unique MARGA_SETUP_TOKEN in .env}
+      JAVIS_ADMIN_USER: ${MARGA_ADMIN_USER:-}
+      JAVIS_ADMIN_PASSWORD: ${MARGA_ADMIN_PASSWORD:-}
     ports:
-      - "${JAVIS_HOST_PORT:-7777}:7777"
+      - "127.0.0.1:${MARGA_HOST_PORT:-7777}:7777"
     volumes:
-      - javis-data:/data
-      - javis-brains:/brains      # đổi sang  ./brains:/brains  nếu muốn git-backup (chown -R 10001 ./brains)
-      - claude-auth:/home/javis/.claude
-      - codex-auth:/home/javis/.codex
+      - marga-state:/data
+      - marga-brains:/brains
+      - marga-claude-auth:/home/javis/.claude
+      - marga-codex-auth:/home/javis/.codex
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,os,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:'+os.getenv('JAVIS_PORT','7777')+'/health',timeout=4).status==200 else 1)"]
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:7777/health',timeout=4).status==200 else 1)"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 25s
 
 volumes:
-  javis-data:
-  javis-brains:
-  claude-auth:
-  codex-auth:
+  marga-state:
+  marga-brains:
+  marga-claude-auth:
+  marga-codex-auth:

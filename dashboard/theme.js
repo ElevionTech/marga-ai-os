@@ -45,7 +45,7 @@
 
   function mode() {
     var v = read(KEY);
-    return v === "dark" || v === "auto" ? v : "light";
+    return v === "dark" || v === "auto" ? v : v === "light" ? "light" : "dark";
   }
 
   function schedule() {
@@ -80,7 +80,7 @@
       m.setAttribute("name", "theme-color");
       document.head.appendChild(m);
     }
-    m.setAttribute("content", light ? "#ffffff" : "#181822");
+    m.setAttribute("content", light ? "#f7f5ff" : "#1b1830");
   }
 
   function syncButton(light) {

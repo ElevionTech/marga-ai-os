@@ -74,22 +74,21 @@ function boot(store, clock) {
 const at = (h, m) => new Date(2026, 9, 4, h, m || 0).getTime();
 
 // ---- Defaults and manual modes ----
-// Since 2026-11-05 a device that never picked a theme is LIGHT (owner: "giao diện sáng là màn mặc định của javis,
-// đừng để mặc định giao diện tối nữa"). From 0.75.1 it was Auto, which turned dark after 18:00.
+// MARGA defaults to the dark-violet palette unless a device has a saved theme choice.
 {
   const b = boot({}, { now: at(12) });
-  check("no saved choice means Light", b.T.mode() === "light");
-  check("so a fresh device is light at noon", b.light());
+  check("no saved choice means Dark", b.T.mode() === "dark");
+  check("a fresh device is dark at noon", !b.light());
   check("and nothing is written until the user picks", !("javis.theme" in b.store));
-  check("a fresh device stays light at night too", boot({}, { now: at(22) }).light());
-  check("an unknown stored value is light as well", boot({ "javis.theme": "weird" }, { now: at(22) }).light());
+  check("a fresh device stays dark at night too", !boot({}, { now: at(22) }).light());
+  check("an unknown stored value falls back to dark", !boot({ "javis.theme": "weird" }, { now: at(22) }).light());
   check("an explicit dark choice is kept", !boot({ "javis.theme": "dark" }, { now: at(12) }).light());
   check("an explicit Auto choice is kept (dark at night)", !boot({ "javis.theme": "auto" }, { now: at(22) }).light()
     && boot({ "javis.theme": "auto" }, { now: at(22) }).T.mode() === "auto");
   check("default schedule is 06:00 to 18:00", JSON.stringify(b.T.schedule()) === '{"light":"06:00","dark":"18:00"}');
   b.T.setMode("light");
   check("manual light turns light", b.light() && b.store["javis.theme"] === "light");
-  check("browser bar colour follows the tone", b.meta.attrs.content === "#ffffff");
+  check("browser bar colour follows the tone", b.meta.attrs.content === "#f7f5ff");
   b.T.setMode("bogus");
   check("unknown mode falls back to Auto", b.store["javis.theme"] === "auto" && b.light());
 }
@@ -200,8 +199,8 @@ if (pre) {
   check("pre-paint and theme.js agree for every minute of the day", !mismatch, mismatch);
   check("pre-paint keeps manual light", runPre({ "javis.theme": "light" }, at(23)));
   check("pre-paint keeps manual dark", !runPre({ "javis.theme": "dark" }, at(12)));
-  check("pre-paint: no saved choice is Light at noon", runPre({}, at(12)));
-  check("pre-paint: no saved choice is Light at night too", runPre({}, at(22)));
+  check("pre-paint: no saved choice is Dark at noon", !runPre({}, at(12)));
+  check("pre-paint: no saved choice is Dark at night too", !runPre({}, at(22)));
   check("pre-paint keeps old 'dim' dark", !runPre({ "javis.theme": "dim" }, at(12)));
   check("pre-paint: old 'dim' stays dark, no flash before the migration",
     !runPre({ "javis.theme": "dim" }, at(12)) && !boot({ "javis.theme": "dim" }, { now: at(12) }).light());

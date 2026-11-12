@@ -41,17 +41,17 @@ check("khong ghep cau bao loi cua server vao dai bao",
 // ---- 2. Phai noi dung viec can lam ----
 check("noi ro la chua ket noi Model AI",
   FN.indexOf('"cs.eng_nomodel"') !== -1
-  && (VI["cs.eng_nomodel"] || "").indexOf("Chưa kết nối Model AI") !== -1);
+  && (VI["cs.eng_nomodel"] || "").indexOf("No AI model connected") !== -1);
 check("moi nguoi dung bam",
   FN.indexOf('"cs.eng_nomodel"') !== -1
-  && (VI["cs.eng_nomodel"] || "").indexOf("bấm để kết nối") !== -1);
+  && (VI["cs.eng_nomodel"] || "").indexOf("click to connect") !== -1);
 
 // ---- 3. Do dai: phai VUA thanh trang thai ----
 // Dai bao dung inline tren thanh trang thai canh cac nut khac. Qua ~60 ky tu la chac chan
 // bi cat cut o man hinh thuong, va cat cut thi mat dung phan huong dan.
 // Chu khong con nam trong console.js nua: doc ten khoa o day roi lay cau that trong vi.json,
 // vi do moi la chuoi thuc su hien ra tren thanh trang thai.
-const m = FN.match(/b\.innerHTML\s*=\s*WARN_ICON[^;]*?window\.t\("([\w.]+)"\)/);
+const m = FN.match(/let missingModel\s*=\s*window\.t\("([\w.]+)"\)/);
 check("doc duoc noi dung dai bao", !!m && !!VI[m[1]]);
 if (m) {
   const text = String(VI[m[1]] || "").trim();
@@ -64,7 +64,7 @@ if (m) {
 check("van giu chi tiet ky thuat trong tooltip", FN.indexOf("b.title") !== -1);
 check("tooltip co nhac trang Models",
   FN.indexOf('"cs.eng_gotomodels"') !== -1
-  && (VI["cs.eng_gotomodels"] || "").indexOf("trang Models") !== -1);
+  && (VI["cs.eng_gotomodels"] || "").indexOf("Models page") !== -1);
 
 // ---- 5. Bam duoc va dan toi dung cho ----
 // Bao "chua ket noi" ma khong dua duoc nguoi ta toi cho ket noi thi chi la than phien.

@@ -223,6 +223,7 @@ server/client_errors.tmp
 packaging/windows/Vietnamese.isl
 
 # MARGA local state and secrets
+.marga/
 .env
 .env.*
 !.env.example

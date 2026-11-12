@@ -44,8 +44,8 @@ _PROVIDER_OF_KIND = {"CodexCLI": "openai-oauth", "GrokCLI": "grok-cli"}
 OUTPUT_MAX_CHARS = 200_000
 ERROR_DETAIL_MAX = 300
 
-SYSTEM_PROMPT = ("Bạn là bộ thực thi một bước của Javis. Chỉ trả về nội dung được yêu cầu, viết bằng chữ. "
-                 "Không gọi công cụ, không đọc hay ghi file, không chạy lệnh: host sẽ tự lưu câu trả lời.")
+SYSTEM_PROMPT = ("You are a one-step MARGA AI OS executor. Return only the requested text. "
+                 "Do not call tools, read or write files, or run commands; the host saves your response.")
 
 
 @dataclass(frozen=True)

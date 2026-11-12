@@ -78,9 +78,7 @@ def ngon_ngu_giao_dien() -> str:
     """Ngôn ngữ CHỮ TRÊN MÀN HÌNH. Dùng cho danh sách skill, nhãn nút, thông báo lỗi.
 
     Thiết bị đang gọi (cookie) -> `ui_lang` của cả máy -> mặc định."""
-    return (_UI_YEU_CAU.get()
-            or lang_registry.chuan_hoa(_cau_hinh().get("ui_lang") or "")
-            or lang_registry.MAC_DINH)
+    return "en"
 
 
 def chu(vi: str, en: str, **bien) -> str:
@@ -94,7 +92,7 @@ def chu(vi: str, en: str, **bien) -> str:
     quên bản kia. Thứ tiếng thứ ba rơi về tiếng Anh (`lang_registry.chon_ban_dich`).
     `bien` chỉ được thay khi có truyền, nên chữ chứa dấu ngoặc nhọn vẫn an toàn.
     """
-    s = lang_registry.chon_ban_dich(ngon_ngu_giao_dien(), {"vi": vi, "en": en})
+    s = en
     if bien:
         try:
             return s.format(**bien)
@@ -113,10 +111,7 @@ def ngon_ngu_tra_loi() -> str:
 
     Chỗ nào có văn bản của lượt chat thì dùng `lang.resolve()` - nó chính xác hơn hàm này.
     """
-    c = _cau_hinh()
-    return (lang_registry.chuan_hoa(c.get("reply_lang") or "")
-            or lang_registry.chuan_hoa(c.get("ui_lang") or "")
-            or lang_registry.MAC_DINH)
+    return "en"
 
 
 def valid_tz(name) -> str:

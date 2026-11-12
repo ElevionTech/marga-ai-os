@@ -677,9 +677,9 @@ def test_paused_workflow_is_not_shown_as_a_crash():
     # Xưng hô đổi sang "bạn" (2026-08-14); 0.52.0 câu dời vào từ điển i18n. Test bám vào Ý
     # ("đang chờ duyệt"): khối phải nhắc khoá, và giá trị tiếng Việt của khoá phải còn nguyên ý.
     assert 't("studio.wait1")' in block
-    vi = (Path(__file__).resolve().parents[2] / "dashboard" / "i18n" / "vi.json").read_text(
+    en = (Path(__file__).resolve().parents[2] / "dashboard" / "i18n" / "en.json").read_text(
         encoding="utf-8")
-    assert "chờ bạn duyệt" in vi
+    assert "The workflow is waiting for you to approve step" in en
 
 
 def test_kanban_marks_a_paused_workflow_as_needing_a_person(tmp_path):

@@ -37,20 +37,22 @@ def doc(noi_dung):
     return (cfgmod.read_settings().get("locale") or {}).get("ui_lang")
 
 
-check("máy mới tinh (chưa có settings.json) -> rỗng, để dashboard đoán", doc(None) == "")
-check("máy cũ có settings.json nhưng chưa từng có khối locale -> vi",
-      doc({"workspace_name": "Shop", "setup_done": True}) == "vi")
-check("máy cũ có locale mà thiếu ui_lang -> vi", doc({"locale": {"tz": "Asia/Ho_Chi_Minh"}}) == "vi")
+check("new installation defaults to English", doc(None) == "en")
+check("legacy settings without locale migrate to English",
+      doc({"workspace_name": "Shop", "setup_done": True}) == "en")
+check("legacy locale without ui_lang migrates to English",
+      doc({"locale": {"tz": "Asia/Ho_Chi_Minh"}}) == "en")
 check("máy đã lưu en -> giữ en", doc({"locale": {"ui_lang": "en"}}) == "en")
-check("máy cài từ 0.66.0 (đã ghi ui_lang rỗng) -> vẫn rỗng, chưa ai chọn",
-      doc({"setup_done": True, "locale": {"ui_lang": ""}}) == "")
-# Ghi lại qua write_settings không được biến "vi" suy ra thành thứ khác, và máy mới ghi lần
-# đầu thì phải giữ được trạng thái "chưa chọn".
+# Legacy Vietnamese preferences and empty values both migrate to English.
+check("legacy Vietnamese preference migrates to English",
+      doc({"setup_done": True, "locale": {"ui_lang": "vi", "reply_lang": "vi"}}) == "en")
+check("empty language preference migrates to English",
+      doc({"setup_done": True, "locale": {"ui_lang": ""}}) == "en")
+# Saving first-run settings keeps the permanent English locale.
 doc(None)
 cfgmod.write_settings(cfgmod.read_settings())
 cfgmod._SETTINGS_CACHE["sig"] = None
-check("máy mới ghi settings lần đầu -> ui_lang vẫn rỗng",
-      (cfgmod.read_settings().get("locale") or {}).get("ui_lang") == "")
+check("first saved settings keep English", (cfgmod.read_settings().get("locale") or {}).get("ui_lang") == "en")
 
 print()
 if _fails:

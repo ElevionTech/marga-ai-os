@@ -51,11 +51,11 @@ for ten, b in bs.HAT_GIONG.items():
 check("giữ chỗ bộ nhớ: nhận bản tiếng Việt", bs.GIU_CHO_BO_NHO.search(bs.HAT_GIONG["memory"]["vi"]))
 check("giữ chỗ bộ nhớ: nhận bản tiếng Anh", bs.GIU_CHO_BO_NHO.search(bs.HAT_GIONG["memory"]["en"]))
 
-# chon(): theo ngôn ngữ của thiết bị đang gọi.
+# chon(): always creates English built-in content, regardless of a legacy locale cookie.
 goc = bs.HAT_GIONG["dashboard"]["vi"]
-check("chon(): không cookie -> tiếng Việt như cũ", bs.chon(goc) == goc)
+check("chon(): no locale cookie still creates English", bs.chon(goc) == bs.HAT_GIONG["dashboard"]["en"])
 tok = localefmt.dat_ngon_ngu_yeu_cau("en")
-check("chon(): cookie en -> tiếng Anh", bs.chon(goc) == bs.HAT_GIONG["dashboard"]["en"])
+check("chon(): English locale creates English", bs.chon(goc) == bs.HAT_GIONG["dashboard"]["en"])
 check("chon(): chuỗi lạ trả nguyên văn", bs.chon("# Ghi chú riêng\n") == "# Ghi chú riêng\n")
 localefmt.bo_ngon_ngu_yeu_cau(tok)
 
@@ -70,9 +70,10 @@ doi = bs.doi_ngon_ngu(root, "en")
 check("đổi sang en: mọi file còn nguyên được viết lại", set(doi) == set(bs.HAT_GIONG) - {"wiki_log"}, doi)
 check("đổi sang en: Dashboard ra tiếng Anh", vt["dashboard"].read_text(encoding="utf-8") == bs.HAT_GIONG["dashboard"]["en"])
 check("file người dùng đã sửa thì KHÔNG đụng", "Sổ tay" in vt["wiki_log"].read_text(encoding="utf-8"))
-check("đổi lại sang vi được (người dùng đổi ý)", "dashboard" in bs.doi_ngon_ngu(root, "vi")
-      and vt["dashboard"].read_text(encoding="utf-8") == bs.HAT_GIONG["dashboard"]["vi"])
-check("đã đúng ngôn ngữ thì không ghi gì", bs.doi_ngon_ngu(root, "vi") == [])
+check("legacy vi setting cannot switch built-in seed back from English",
+      bs.doi_ngon_ngu(root, "vi") == []
+      and vt["dashboard"].read_text(encoding="utf-8") == bs.HAT_GIONG["dashboard"]["en"])
+check("English seed is not rewritten", bs.doi_ngon_ngu(root, "en") == [])
 check("mã rác thì không làm gì", bs.doi_ngon_ngu(root, "") == [] and bs.doi_ngon_ngu(root, "xx") == [])
 
 # Phần gắn vào server: tạo file theo chon(), chốt ngôn ngữ thì đổi, learn.py nhận dòng giữ chỗ.

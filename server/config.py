@@ -11,10 +11,14 @@ import hashlib
 import secrets
 from pathlib import Path
 
-# Mọi state Javis tự ghi (settings, auth sessions, loop config) nằm ở JAVIS_STATE_DIR.
-# Mặc định = server/ (không đổi trên máy cũ). Docker/VPS đặt = /data/state (volume ghi được,
-# vì code tree /app là read-only trong container).
-STATE_DIR = Path(os.getenv("JAVIS_STATE_DIR", str(Path(__file__).parent)))
+# MARGA owns its runtime data. JAVIS_STATE_DIR remains a compatibility alias for deployments
+# that deliberately set it; the default is outside the source tree and never points at Jarvis.
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+STATE_DIR = Path(os.getenv("MARGA_STATE_DIR") or os.getenv("JAVIS_STATE_DIR")
+                 or str(_PROJECT_ROOT / ".marga" / "state"))
+# Inherited modules still read the old variable name. Point both names at the same MARGA-owned
+# directory so SQLite stores, sessions, logs, and plugin runtime state cannot split apart.
+os.environ["JAVIS_STATE_DIR"] = str(STATE_DIR)
 try:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
 except Exception:
@@ -26,7 +30,7 @@ SETTINGS_PATH = STATE_DIR / "settings.json"
 BRANDING_DIR = STATE_DIR / "branding"
 
 _DEFAULT = {
-    "workspace_name": "Javis OS",
+    "workspace_name": "MARGA AI OS",
     "setup_done": False,                       # đã qua bộ cài đặt lần đầu chưa
     # totp = xác thực 2 lớp. secret rỗng / enabled=false → cổng đăng nhập giữ nguyên như cũ.
     # `recovery` giữ BẢN BĂM của mã khôi phục (cùng cách băm mật khẩu), nên không có đường nào
@@ -46,8 +50,8 @@ _DEFAULT = {
     # Gộp ba cái làm một là chặn đứng ca dùng đáng tiền nhất: chủ Việt, giao diện Việt, brain
     # Việt, nhưng chatbot đối ngoại trả lời tiếng Nhật.
     "locale": {
-        "ui_lang": "",
-        "reply_lang": "auto",              # auto | vi | en
+        "ui_lang": "en",
+        "reply_lang": "en",
         "tz": "Asia/Ho_Chi_Minh",
         "currency": "VND",
     },
@@ -945,8 +949,9 @@ def _ui_lang_ban_cu(cfg: dict, data: dict) -> None:
     Việt có trình duyệt để tiếng Anh bị đổi giao diện trong im lặng. Hồi đó Javis chỉ có tiếng
     Việt, nên "vi" là đúng sự thật chứ không phải đoán. Chỉ chạm vào bộ nhớ, không ghi file.
     """
-    if data and "ui_lang" not in (data.get("locale") or {}):
-        cfg.setdefault("locale", {})["ui_lang"] = "vi"
+    lc = cfg.setdefault("locale", {})
+    lc["ui_lang"] = "en"
+    lc["reply_lang"] = "en"
 
 
 def read_settings():

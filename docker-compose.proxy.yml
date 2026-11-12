@@ -28,7 +28,7 @@
 services:
   proxy:
     image: lucaslorentz/caddy-docker-proxy:2.13-alpine
-    container_name: javis-proxy
+    container_name: marga-proxy
     restart: unless-stopped
     ports:
       - "80:80"
@@ -36,7 +36,7 @@ services:
       - "443:443/udp"        # HTTP/3
     environment:
       # Chỉ nhìn các container nằm trên mạng này -> không vô tình phơi container khác của VPS ra Internet.
-      CADDY_INGRESS_NETWORKS: javis-web
+      CADDY_INGRESS_NETWORKS: marga-web
       # Muốn Let's Encrypt gửi cảnh báo hết hạn về email: bind-mount một Caddyfile chỉ chứa
       #   { email ban@tencuaban.com }
       # rồi trỏ CADDY_DOCKER_CADDYFILE_PATH vào nó. Không đặt cũng chạy và vẫn tự gia hạn.
@@ -45,12 +45,12 @@ services:
       - proxy-data:/data       # chứng chỉ đã cấp - giữ qua restart, không xin lại (tránh cạn rate-limit)
       - proxy-config:/config
     networks:
-      - javis-web
+      - marga-web
 
 networks:
-  javis-web:
+  marga-web:
     external: true
-    name: javis-web
+    name: marga-web
 
 volumes:
   proxy-data:
