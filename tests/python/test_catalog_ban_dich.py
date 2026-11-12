@@ -61,21 +61,20 @@ check("bản tiếng Anh không lẫn chữ Việt", not DAU_VIET.search(raw_en)
 check("bản tiếng Anh không dùng em dash / en dash", "—" not in raw_en and "–" not in raw_en)
 
 # Chạy thật: đúng chỗ dashboard gọi.
-pub_vi = {c["id"]: c for c in mcp_catalog.public_catalog()}
-tok = localefmt.dat_ngon_ngu_yeu_cau("en")
 pub_en = {c["id"]: c for c in mcp_catalog.public_catalog()}
+tok = localefmt.dat_ngon_ngu_yeu_cau("vi")
+pub_en2 = {c["id"]: c for c in mcp_catalog.public_catalog()}
 localefmt.bo_ngon_ngu_yeu_cau(tok)
-pub_vi2 = {c["id"]: c for c in mcp_catalog.public_catalog()}
 
 if "botcake" in pub_en:
     check("tiếng Anh: mô tả Botcake ra bản tiếng Anh", pub_en["botcake"]["description"].startswith("Customers, tags"))
     check("tiếng Anh: nhãn ô nhập cũng dịch",
           any(f["label"] == "The page's API key" for f in pub_en["botcake"]["fields"]))
-    check("tiếng Việt: vẫn là bản gốc", pub_vi["botcake"]["description"] == goc["botcake"]["description"])
+    check("legacy locale hint still produces English", pub_en2["botcake"]["description"] == pub_en["botcake"]["description"])
 if "gmail" in pub_en:
     check("tiếng Anh: nhãn link cài đặt dịch", pub_en["gmail"]["setup"]["links"][0]["label"] == "Enrol in Developer Preview")
-    check("phủ bản dịch KHÔNG làm bẩn catalog gốc đang cache (gọi lại tiếng Việt vẫn ra tiếng Việt)",
-          pub_vi2["gmail"]["setup"]["links"][0]["label"] == goc["gmail"]["auth"]["setup"]["links"][0]["label"])
+    check("English overlay does not mutate the source catalog",
+          goc["gmail"]["auth"]["setup"]["links"][0]["label"] != pub_en["gmail"]["setup"]["links"][0]["label"])
 check("tiếng Anh: không còn chữ Việt trong chữ hiển thị của connector có bản dịch",
       not [cid for cid, c in pub_en.items() if cid in en
            and DAU_VIET.search(json.dumps({k: c.get(k) for k in ("name", "description", "group_line", "guide", "risk", "fields", "steps", "setup")}, ensure_ascii=False))])

@@ -94,7 +94,8 @@ m = fastyaml.safe_load((dest / "plugin.yaml").read_text(encoding="utf-8"))
 check("install: forced enabled: false although the zip said true", m.get("enabled") is False, m)
 check("install: staging cleaned", not (plugin_install.STAGING / r["sha256"]).exists())
 mode = stat.S_IMODE((dest / "plugin.py").stat().st_mode)
-check("install: archive modes ignored (0644)", mode == 0o644, oct(mode))
+expected_modes = (0o644, 0o666) if os.name == "nt" else (0o644,)
+check("install: archive modes ignored (non-executable)", mode in expected_modes, oct(mode))
 
 d = described("zip-demo")
 check("listed as a user plugin, off, not loaded",

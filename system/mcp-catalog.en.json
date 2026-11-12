@@ -2,6 +2,7 @@
  "_doc": "English overlay for system/mcp-catalog.json. Only display text lives here (name, description, group_line, risk, guide, field labels and placeholders, wizard steps, setup link labels), keyed by connector id. The server lays it over the Vietnamese source when the device reads the interface in English (or in a language with no overlay of its own). Steps and setup links match the source by position. Add a language = add mcp-catalog.<code>.json; no code change.",
  "connectors": {
   "composio": {
+   "category": "Apps",
    "description": "Composio's multi-app gateway: one connection opens up 500+ apps (Gmail, Notion, Google Sheets, GitHub, Linear, Slack...). Javis finds the tool, links each app account and runs actions through Composio, with no dedicated connector needed per app. Paste an API key (ck_...) and you are done.",
    "risk": "Composio is a multi-app gateway: every action on a real app (read mail, send mail, edit a sheet, create an issue...) runs through ONE shared tool.\nJavis inspects EACH inner command by name: a read verb (LIST, GET, FETCH, SEARCH...) counts as a read, anything else counts as a write.\n\nRead-only: read data from linked apps (view calendars, read mail, list files) and see which accounts are linked. Any command that is not clearly a read is blocked.\n\nDraft: also allows linking new apps (Composio gives you a sign-in link, you sign in yourself, Javis never sees the password).\n\nFull access: Javis can run EVERY action of the apps you linked through Composio, including sending messages and editing or deleting real data.\nOnly raise it when you really need to; the reach is exactly the permissions you granted each app on Composio.",
    "guide": "One-time setup:\n1. Go to Composio For You → Connect my agent and pick the MCP client app.\n2. Copy the consumer key (ck_*) from the connection guide. Javis sends it in the x-consumer-api-key header to https://connect.composio.dev/mcp.\nDo not use a Project API key (ak_*) or an MCP server created in Platform.\n3. Paste the key here and press Connect. If Javis is already connected, choose Reconnect on the Composio card to swap the key, then press Test.\n\nLink Calendar or other apps under Composio For You → Connect Apps.\nLinking apps does not update the consumer key saved in Javis. Once connected, Javis can find tools, open app sign-in links and run actions through Composio.\n\nNOTE: at Read-only, Javis can read data from linked apps (view calendars, read mail, list files...) and see the list of linked accounts. To let Javis edit, send or delete, raise it to Full access.",
@@ -10,6 +11,7 @@
    }
   },
   "cloudflare": {
+   "category": "Development",
    "description": "The whole Cloudflare API in chat through the official MCP: DNS, Workers, Pages, KV, R2, D1, firewall, SSL, cache, traffic analytics, Zero Trust. Paste an API token and you are done; the token's permissions decide what Javis can do.",
    "group_line": "Paste an API token: pick permissions per area, shared with the Cloudflare Deploy (Wrangler) pack.",
    "risk": "Cloudflare's MCP has only 3 tools: docs (search the documentation), search (find the API to call) and execute (run code that calls the real Cloudflare API).\n\nexecute can call EVERY API the permissions you granted allow, from reading analytics to DELETING a domain, editing DNS, deploying a Worker or deleting an R2 bucket.\nJavis cannot tell whether one execute call reads or deletes, so it sits in the dangerous group.\n\nRead-only and Draft: Javis only searches the docs and the API list, without touching your account.\n\nFull access: Javis acts for real. One wrong DNS record takes a website or email down at once; deleting a Worker or bucket loses data.\n\nThe safest setup: if you only want Javis to read figures, create a token with ONLY Read permissions before raising it to Full access. Then even a run of execute cannot change anything.",
@@ -42,6 +44,7 @@
    ]
   },
   "cloudflare-oauth": {
+   "category": "Development",
    "name": "Cloudflare (web sign-in)",
    "description": "The same official Cloudflare MCP without creating an API token: press Connect, sign in to Cloudflare and tick the permissions to grant on Cloudflare's own page. Manage DNS, Workers, Pages, KV, R2, D1, firewall, SSL, cache and traffic analytics.",
    "group_line": "Sign in on the web: one tap, no token. Permissions are ticked at sign-in; connect again to change them.",
@@ -49,11 +52,13 @@
    "guide": "Press Connect, sign in to your Cloudflare account, then choose the permissions to grant Javis on Cloudflare's page.\n\nJavis registers itself through the Cloudflare MCP's standard OAuth, so there is no token to create or key to paste. This is the way Cloudflare recommends.\n\nThe permissions you tick at sign-in are the real fence: to only view figures, tick read permissions only. If something is missing later, press Connect again and tick more.\n\nIf your login has several Cloudflare accounts, say in chat which account to work on.\n\nThe Cloudflare Deploy (Wrangler) pack cannot use this connection yet: it needs the Paste API token way."
   },
   "zalo": {
+   "category": "Messaging",
    "description": "The javis-zalo MCP (Javis's own Zalo CLI): read new messages and history, find chats, see who joined a group and when, approve join requests, read the tags (labels) set on chats, view media and send messages from a personal Zalo account.",
    "risk": "This connector defaults to FULL ACCESS, which means the send tool is on. To block sending, lower it to Draft or Read-only.\n\njavis-zalo uses Zalo's unofficial API through zca-js. The account MAY be restricted or LOCKED; use a secondary account and do not auto-send in bulk.",
    "guide": "Needs Node.js 20+. Press Connect, scan the QR code with the Zalo app, then use the 13 MCP tools of javis-zalo directly. There is no separate Javis listener, webhook or Zalo rules file any more."
   },
   "botcake": {
+   "category": "Messaging",
    "description": "Customers, tags, flows and sending messages from a Botcake chatbot (through the Public API: Javis builds the bridge itself, nothing else to install).",
    "risk": "Read-only (the default) only views customers, tags and flows.\n\nFull access lets Javis SEND REAL MESSAGES to customers through the chatbot, using an existing flow or text it writes. A sent message cannot be recalled.\n\nIf you only need to look at the data, keep Read-only.",
    "guide": "Open Botcake > Settings > Integrations > Public API > Create API Key.\n\nNote: refreshing or deleting the key disables existing connections.",
@@ -63,6 +68,7 @@
    }
   },
   "google-sheets": {
+   "category": "Office",
    "description": "Read and write Google spreadsheets: push revenue, stock and receivables reports to Sheets automatically. Connects with a service account, no sign-in needed.",
    "group_line": "Read and write Google Sheets spreadsheets.",
    "risk": "Draft (the default) lets Javis CREATE and EDIT real spreadsheets in Drive, including overwriting existing data.\n\nFull access adds permission to SHARE spreadsheets with other people. Sharing pushes business numbers outside, so it counts as dangerous, just like sharing a Google Keep note.\n\nJavis can only touch the Drive folder you shared with the service account.",
@@ -80,6 +86,7 @@
    }
   },
   "google-workspace": {
+   "category": "Office",
    "name": "Google Workspace (Gmail, Calendar, Drive, Docs)",
    "description": "Gmail, Calendar, Drive, Docs, Sheets, Slides, Forms, Tasks... in ONE connection. Create an OAuth client once, about 10 minutes, with step-by-step help. The first time a Google tool is called, a browser opens ON THE MACHINE RUNNING JAVIS for you to approve, so that machine needs a screen.",
    "group_line": "Gmail, Calendar, Drive, Docs and Sheets in ONE connection. Needs a machine with a screen; on a VPS use the separate Calendar and Gmail cards.",
@@ -102,6 +109,7 @@
    ]
   },
   "google-tasks": {
+   "category": "Office",
    "description": "To-dos in Google Tasks: view lists, add tasks, set due dates, mark them done. Only asks for Tasks access, never Gmail or Drive. Signs in with an OAuth client you create yourself (~10 minutes, with help).",
    "group_line": "To-dos: view lists, add tasks, set due dates, mark done. Only asks for Tasks access.",
    "risk": "Draft (the default) lets Javis CREATE and EDIT real tasks in Google Tasks: add tasks, change due dates, mark them done, and delete a single task (the combined manage_task tool has a delete action).\n\nFull access adds permission to CREATE, RENAME and DELETE whole task LISTS. Deleting a list loses every task in it, and it cannot be undone.\n\nThis connection only asks for Google Tasks access; it cannot read Gmail, Drive or Calendar.",
@@ -123,6 +131,7 @@
    ]
   },
   "google-ads": {
+   "category": "Advertising",
    "description": "Google Ads numbers through Google's official MCP: campaigns, spend, conversions, keywords and change history through GAQL queries. Read-only by default. Runs locally; needs a Google Cloud project and an OAuth client, no developer token, about 10 minutes of one-time setup.",
    "guide": "Needed first: nothing to install. Javis fetches Google's latest official release (PyPI) each time it starts.\n\nOne-time setup, about 10 minutes:\n1. Go to console.cloud.google.com, create a project and enable the Google Ads API.\n2. Open that project's Google Ads API page (button below) and press 'Apply for access' to move up to Explorer.\nThe default Test level only reads test accounts. Explorer reads real accounts and is usually approved within minutes.\n3. Google Auth Platform > Audience: choose External and add your email under Test users.\n4. Google Auth Platform > Clients > Create an OAuth client ID of type 'Web application'.\n5. Under 'Authorized redirect URIs', add exactly this address:\nhttp://localhost:7777/connect/oauth/callback\nOn a VPS also add https://<your-domain>/connect/oauth/callback\n6. Fill in the Client ID and Client Secret below, then press the sign-in button. A browser opens so you can let Javis read Google Ads.\n\nNO developer token and no MCC manager account needed: access is now tied to the Google Cloud project.\nThe developer token box is only for people who still hold an old token.\n\nJavis builds the credentials file itself: NO Google Cloud CLI install and no commands to run.\n\nIf you see an 'app isn't verified' warning, press Advanced > Continue: this is your own app.\n\nWhile the app is still in Testing, Google revokes the sign-in after 7 days: sign in again, or go to Audience > Publish app to keep it.\n\nAlready ran gcloud yourself? Paste the content of application_default_credentials.json into the last box and Javis uses it as is.",
    "risk": "The Read only level (default) only reads numbers and cannot change anything in the ads account.\n\nThe Draft writes level lets Javis CREATE new assets (headlines, images, sitelinks, callouts) in the Google Ads account.\n\nThe Full access level adds CREATING, EDITING and DELETING labels, attaching or removing labels on campaigns and ad groups, and UPLOADING A VIDEO from this machine to YouTube to use as an asset.\nA deleted label cannot be restored; an uploaded video sits on your YouTube channel.\n\nGoogle's MCP 0.0.6 has no tool that changes budgets, bids or turns campaigns on or off. If a later release adds one, its level will be declared again.",
@@ -144,6 +153,7 @@
    }
   },
   "google-calendar": {
+   "category": "Office",
    "description": "Google Calendar through Google's official MCP: view calendars, find free time, create and edit events and reminders. Sign in to Google inside the dashboard; works on a VPS too. Needs a one-time OAuth client plus Google's Developer Preview enrolment (~10 minutes).",
    "group_line": "View calendars, find free time, create and edit events. Sign in inside the dashboard; works on a VPS too.",
    "risk": "Draft lets Javis CREATE and EDIT real events on your calendar (handy for \"remind me to call the supplier on Thursday\").\n\nFull access adds permission to DELETE events.\n\nIf you only need to look at your calendar, keep Read-only.",
@@ -172,6 +182,7 @@
    }
   },
   "gmail": {
+   "category": "Office",
    "description": "Gmail through Google's official MCP: read and search mail, write DRAFTS, label and sort the inbox. The official server has NO direct send tool: it always stops at a draft so you press send yourself. Needs a one-time OAuth client plus Google's Developer Preview enrolment.",
    "group_line": "Read and search mail, write drafts, add labels. No direct send tool: always stops at a draft.",
    "risk": "Draft lets Javis WRITE DRAFT emails and add or remove labels in your inbox.\n\nThe official Gmail server has no direct send tool, so Javis cannot send on its own: it always stops at a draft for you to send.\n\nIf you only need to read and search mail, keep Read-only.",
@@ -208,6 +219,7 @@
    }
   },
   "google-keep": {
+   "category": "Office",
    "description": "Read and edit Google Keep notes: find notes, create notes and checklists, add labels, pin and archive. NOTE: Keep has no official API, so it needs a master token with FULL ACCESS to the Google account, not scoped OAuth like Gmail or Calendar. Javis only works on notes, but the token opens the whole account if it leaks.",
    "group_line": "Keep notes: find, create, pin. Uses a FULL ACCESS account token, think it over.",
    "risk": "This connection uses a Google MASTER TOKEN, a token with FULL ACCESS to the Google account (Gmail, Drive, Photos), not scoped OAuth like Gmail or Calendar.\n\nDraft lets Javis create and edit notes, pin, archive and label for real in Keep.\n\nFull access adds permission to TRASH and DELETE notes and SHARE notes with other people.\n\nIf you typed true in the UNSAFE_MODE box, Javis can touch the notes you wrote by hand too, not only the ones it created.",
@@ -234,6 +246,7 @@
    }
   },
   "notebooklm": {
+   "category": "Office",
    "description": "Read and work with notebooks in Google NotebookLM: list notebooks, read sources, ask questions inside a notebook, add sources, save notes, create summaries and audio in Studio. NOTE: NotebookLM has no official API, so it borrows your BROWSER SIGN-IN SESSION (Google cookies), not scoped OAuth like Gmail or Calendar.",
    "risk": "This connection uses Google SESSION COOKIES, a credential equal to being signed in to your Google account, not scoped OAuth like Gmail or Calendar.\n\nRead-only: list notebooks, read sources, check status. Changes nothing.\n\nDraft: adds creating notebooks, adding sources, saving notes, asking questions in a notebook and creating summaries and audio in Studio; these use up your NotebookLM quota.\n\nFull access: adds DELETING notebooks and sources, and SHARING notebooks with other people. A wrong share can be undone, but people may already have read it, so it sits at the highest level.\n\nnotebooklm-py is an UNOFFICIAL library built on NotebookLM's internal protocol. Google can break this connection any time it changes that protocol.",
    "guide": "NotebookLM has no official API yet, so Javis has to borrow your browser's SIGN-IN SESSION.\n\nWARNING: what you paste here is a Google session cookie, equal to being signed in to your Google account, NOT scoped OAuth. Only do this on a machine you trust.\n\nOne-time setup, ON A PERSONAL COMPUTER with a browser (it cannot be done on a VPS):\n1. Install uv if you don't have it.\n2. Run: uvx --from \"notebooklm-py[browser]\" notebooklm login\n   A browser opens; sign in to Google and visit notebooklm.google.com once.\n3. Open the file it just created: ~/.notebooklm/profiles/default/storage_state.json (Windows: %USERPROFILE%\\.notebooklm\\profiles\\default\\storage_state.json). Copy ALL of its content.\n4. Paste it into the box above and press Connect.\n\nWhen the Google session expires, run step 2 again and paste the new string. To connect several accounts, add another connection and paste that account's session; each connection keeps its own session.",

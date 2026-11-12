@@ -50,8 +50,7 @@ def lop_phu(ma: str) -> dict:
     ma = lang_registry.chuan_hoa(ma) or lang_registry.MAC_DINH
     if ma == lang_registry.MAC_DINH:
         return {}
-    du_phong = ({} if lang_registry.DU_PHONG_GIAO_DIEN == lang_registry.MAC_DINH
-                else _doc_lop_phu(lang_registry.DU_PHONG_GIAO_DIEN))
+    du_phong = _doc_lop_phu("en")
     rieng = _doc_lop_phu(ma)
     if not rieng or rieng is du_phong:
         return du_phong
@@ -68,14 +67,19 @@ def _dat(dich: dict, goc: dict, khoa: str) -> None:
 
 def phu(muc: list, ma: str | None = None) -> list:
     """Phủ bản dịch lên danh sách connector đã dựng cho UI. Không đụng tới dữ liệu gốc."""
-    ban = lop_phu(ma if ma is not None else localefmt.ngon_ngu_giao_dien())
+    ng = ma if ma is not None else localefmt.ngon_ngu_giao_dien()
+    ban = lop_phu(ng)
+    # The source catalog is retained for compatibility, but the built-in UI
+    # is English-only. Apply the English display overlay at the UI boundary.
+    if not ban and lang_registry.chuan_hoa(ng) == lang_registry.MAC_DINH:
+        ban = _doc_lop_phu("en")
     if not ban:
         return muc
     for c in muc:
         d = ban.get(c.get("id"))
         if not isinstance(d, dict):
             continue
-        for k in ("name", "description", "group_line", "guide", "risk"):
+        for k in ("name", "category", "description", "group_line", "guide", "risk"):
             _dat(d, c, k)
         fd = d.get("fields") or {}
         for f in c.get("fields") or []:

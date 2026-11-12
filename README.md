@@ -49,6 +49,12 @@ Open <http://127.0.0.1:28779>. Fresh-state initialization can take approximately
 
 Do not bind a fresh administrator setup to a public interface. Configure the owner-controlled setup token before using a reverse proxy or public deployment.
 
+## Plugin persistence
+
+User-installed plugins are stored under `<MARGA_STATE_DIR>\plugins`. Their `plugin.yaml` files retain the installed plugin metadata and enabled state. Plugin-specific runtime configuration is stored under `<MARGA_STATE_DIR>\plugin-data`, while bundled-plugin enable and disable overrides are stored in `<MARGA_STATE_DIR>\plugins.json`.
+
+Keep the same `MARGA_STATE_DIR` across restarts and preserve the corresponding Docker volume. The default Windows state root is `.marga\state`. If `JAVIS_ENABLE_USER_PLUGINS=false` or the legacy vault-plugin alias is set, installed user plugins remain on disk but are intentionally not loaded. The Windows launcher writes stdout and stderr logs to `.marga\state\marga.stdout.log` and `.marga\state\marga.stderr.log`.
+
 ## AI providers
 
 Provider setup is available from the authenticated Models page. Options include OpenAI API, OpenAI OAuth, Claude Code CLI, Gemini API, Ollama Local, and other compatible providers.

@@ -56,7 +56,7 @@ check("đủ 5 giọng đa ngôn ngữ", set(GIONG_DA_NGON_NGU).issubset(giong))
 # giọng đã lưu không còn trong danh sách.
 check("giọng mặc định là Emma (mục đầu tiên)", giong[0] == "en-US-EmmaMultilingualNeural")
 check("nhãn giọng nữ là tên thật Hoài My, không còn Ngọc Thu",
-      "Hoài My" in VI.get("qs.voice_opt_hoaimy", "") and "Ngọc Thu" not in INDEX)
+      "Hoai My" in EN.get("qs.voice_opt_hoaimy", "") and "Ngoc Thu" not in INDEX)
 check("nhãn Nam Minh giữ nguyên", "Nam Minh" in VI.get("qs.voice_opt_namminh", ""))
 for khoa in ("qs.voice_opt_hoaimy", "qs.voice_opt_namminh"):
     check(f"{khoa} có ở CẢ vi.json và en.json", bool(VI.get(khoa)) and bool(EN.get(khoa)))
@@ -67,12 +67,12 @@ for ma, (ten, khoa) in GIONG_DA_NGON_NGU.items():
     check(f"{ten}: khoá {khoa} có ở CẢ vi.json và en.json",
           bool(VI.get(khoa)) and bool(EN.get(khoa)))
     check(f"{ten}: nhãn tiếng Việt có tên giọng và ghi rõ đa ngôn ngữ",
-          ten in VI.get(khoa, "") and "đa ngôn ngữ" in VI.get(khoa, ""))
+          ten in EN.get(khoa, "") and "multilingual" in EN.get(khoa, ""))
     check(f"{ten}: có trong trang voice-test", f'<option value="{ma}">' in VOICE_TEST)
 
 check("dòng ghi chú giọng đa ngôn ngữ có khoá i18n ở cả hai từ điển",
       'data-i18n="qs.voice_ml_note"' in INDEX and bool(VI.get("qs.voice_ml_note")) and bool(EN.get("qs.voice_ml_note")))
-check("voice-test cũng ghi Hoài My", "Hoài My" in VOICE_TEST and "Ngọc Thu" not in VOICE_TEST)
+check("voice-test also uses Hoai My", "Hoai My" in VOICE_TEST and "Ngoc Thu" not in VOICE_TEST)
 
 # Không có em dash trong chuỗi mới (luật chung của dự án).
 moi = [VI[k] for k in VI if k.startswith("qs.voice_")] + [EN[k] for k in EN if k.startswith("qs.voice_")]

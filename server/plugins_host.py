@@ -277,7 +277,10 @@ def _theo_ngon_ngu(manifest: dict, khoa: str, goc: str) -> str:
         import localefmt
         ma = localefmt.ngon_ngu_giao_dien()
         if ma == lang_registry.MAC_DINH:
-            return goc
+            # English is the permanent built-in UI language. Prefer the
+            # explicit English manifest field when a plugin provides one.
+            v = manifest.get(f"{khoa}_en")
+            return v.strip() if isinstance(v, str) and v.strip() else goc
         for m in (ma, lang_registry.DU_PHONG_GIAO_DIEN):
             v = manifest.get(f"{khoa}_{m}")
             if isinstance(v, str) and v.strip():

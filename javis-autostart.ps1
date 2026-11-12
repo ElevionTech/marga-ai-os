@@ -20,13 +20,13 @@ $Name = "JavisOS"                                  # khop _AUTOSTART_NAME trong 
 
 switch ($Action.ToLower()) {
   "install" {
-    $vbs = Join-Path $Root "start-javis.vbs"
-    if (-not (Test-Path $vbs)) {
-      Write-Host "Khong thay start-javis.vbs canh script nay - dat javis-autostart.ps1 o goc thu muc Javis."
+    $launcher = Join-Path $Root "start-marga.ps1"
+    if (-not (Test-Path $launcher)) {
+      Write-Host "Khong thay start-marga.ps1 canh script nay - dat javis-autostart.ps1 o goc thu muc MARGA."
       exit 1
     }
-    # Cung chuoi voi _autostart_command() trong server/main.py, de dashboard bao "Bat" chu khong bao "duong dan cu".
-    $cmd = "wscript.exe //nologo `"$vbs`" /open"
+    $ps = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+    $cmd = "`"$ps`" -NoProfile -ExecutionPolicy Bypass -File `"$launcher`" -Open"
     if (-not (Test-Path $RunKey)) { New-Item -Path $RunKey -Force | Out-Null }
     Set-ItemProperty -Path $RunKey -Name $Name -Value $cmd
     # Task Manager tat muc nay bang mot co rieng; bat lai thi go co do (giong nut trong dashboard).

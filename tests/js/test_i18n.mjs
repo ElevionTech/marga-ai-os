@@ -239,7 +239,10 @@ function dongVietTrongMaChay(src) {
   return src
     .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ""))
     .split("\n")
-    .map((d) => (d.trim().startsWith("//") ? "" : d))
+    .map((d) => {
+      const i = d.indexOf("//");
+      return i >= 0 && (i === 0 || d[i - 1] !== ":") ? d.slice(0, i) : d;
+    })
     // Chú thích CUỐI DÒNG cũng phải bóc. Điều kiện "không đứng sau dấu hai chấm" là để
     // không cắt nhầm giữa một URL ("https://..."), chỗ mà hai dấu gạch chéo là dữ liệu
     // chứ không phải chú thích.

@@ -92,7 +92,7 @@ with tempfile.TemporaryDirectory() as td:
         check("và catalog chưa đổi", len(mcp_catalog.load()) == so_goc)
 
         xau = pack_install.cai(r["staging_id"], "0" * 64)
-        check("cài với dấu vân tay SAI thì bị từ chối", not xau["ok"] and "đã đổi" in xau["error"])
+        check("cài với dấu vân tay SAI thì bị từ chối", not xau["ok"] and "changed since you previewed" in xau["error"])
         check("và vẫn chưa đặt gì vào kho", not any(packs.PACKS_DIR.iterdir()))
 
         ok = pack_install.cai(r["staging_id"], r["sha256"], enable=True)
@@ -163,17 +163,17 @@ with tempfile.TemporaryDirectory() as td:
 
         cac_ca = [
             ("leo ra ngoài bằng ..",
-             zip_tho({"javis-pack.yaml": MF.format(pid="x"), "../../trom.txt": "x"}), "leo ra ngoài"),
+             zip_tho({"javis-pack.yaml": MF.format(pid="x"), "../../trom.txt": "x"}), "path escapes the folder"),
             ("đường dẫn tuyệt đối",
-             zip_tho({"javis-pack.yaml": MF.format(pid="x"), "/etc/passwd": "x"}), "tuyệt đối"),
+             zip_tho({"javis-pack.yaml": MF.format(pid="x"), "/etc/passwd": "x"}), "absolute path"),
             ("liên kết tượng trưng",
              zip_tho({"javis-pack.yaml": MF.format(pid="x")},
-                     symlink=("plugin.py", "../../.secret_key")), "liên kết tượng trưng"),
+                     symlink=("plugin.py", "../../.secret_key")), "contains a symbolic link"),
             ("mang theo tệp .env",
-             zip_tho({"javis-pack.yaml": MF.format(pid="x"), ".env": "SECRET=1"}), "không cho phép"),
+             zip_tho({"javis-pack.yaml": MF.format(pid="x"), ".env": "SECRET=1"}), "file name not allowed"),
             ("mang theo khoá riêng",
-             zip_tho({"javis-pack.yaml": MF.format(pid="x"), "khoa.pem": "x"}), "khoá riêng"),
-            ("không phải zip", b"khong phai zip", "hợp lệ"),
+             zip_tho({"javis-pack.yaml": MF.format(pid="x"), "khoa.pem": "x"}), "private key file not allowed"),
+            ("không phải zip", b"khong phai zip", "not a valid .zip file"),
         ]
         for ten, du_lieu, dau_hieu in cac_ca:
             b = pack_install.soi(du_lieu, "xau.zip")
@@ -182,11 +182,11 @@ with tempfile.TemporaryDirectory() as td:
 
         # Tỉ lệ nén bất thường: 2MB toàn 'A' nén lại rất nhỏ.
         b = pack_install.soi(zip_tho({"javis-pack.yaml": MF.format(pid="x")}, ti_le=True), "bom.zip")
-        check("từ chối: tỉ lệ nén bất thường", not b["ok"] and "tỉ lệ" in b["error"])
+        check("từ chối: tỉ lệ nén bất thường", not b["ok"] and "abnormal compression ratio" in b["error"])
 
         # Quá nhiều tệp.
         b = pack_install.soi(zip_tho({f"f{i}.txt": "x" for i in range(600)}), "nhieu.zip")
-        check("từ chối: quá nhiều tệp", not b["ok"] and "quá nhiều" in b["error"])
+        check("từ chối: quá nhiều tệp", not b["ok"] and "too many files" in b["error"])
 
         # Zip hợp lệ nhưng không có manifest.
         b = pack_install.soi(zip_tho({"doc.txt": "chao"}), "khong-manifest.zip")
@@ -197,7 +197,7 @@ with tempfile.TemporaryDirectory() as td:
         # mục theo nó, nên ca "id lệch tên thư mục" chỉ xảy ra với gói thả tay - đã có
         # test riêng canh chuyện đó.
         b = pack_install.soi(zip_goi(mf='format: javis-pack\nspec: 1\nid: "Có Dấu"\n'), "id-xau.zip")
-        check("từ chối id gói không hợp lệ", not b["ok"] and "id gói" in b["error"])
+        check("từ chối id gói không hợp lệ", not b["ok"] and "invalid pack id" in b["error"])
         b = pack_install.soi(zip_goi(mf="format: khong-phai\nspec: 1\nid: x\n"), "sai-format.zip")
         check("từ chối tệp không phải gói Javis", not b["ok"] and "format" in b["error"])
 
@@ -279,7 +279,7 @@ src_js = (DASHBOARD / "packs.js").read_text(encoding="utf-8")
 # mỗi khẳng định về "màn hình phải nói câu X" kiểm ĐỦ HAI VẾ: packs.js gọi đúng khoá, VÀ khoá
 # đó trong vi.json mang đúng câu. Thiếu vế đầu thì gỡ hẳn dòng chữ khỏi giao diện vẫn xanh;
 # thiếu vế sau thì đổi nội dung khoá thành câu ngược nghĩa vẫn xanh.
-_VI = json.loads((DASHBOARD / "i18n" / "vi.json").read_text(encoding="utf-8"))
+_EN = json.loads((DASHBOARD / "i18n" / "en.json").read_text(encoding="utf-8"))
 check("màn hình xác nhận vẽ từ /packs/inspect", "/packs/inspect" in src_js)
 # Từ 0.64.70 gói có mã KHÔNG còn bắt gõ lại mã gói (chủ app bỏ bước này). Cảnh báo đỏ vẫn
 # hiện, và nút bấm cài không được tự chặn vì một ô nhập đã không còn tồn tại trên màn hình.
@@ -306,8 +306,8 @@ check("CANARY: gói CÓ MÃ thì công tắc mặc định tắt (trừ khi lố
       "const batSan = !coMa || !!tuy.batSan;" in src_js and '(batSan ? "true" : "false")' in _o)
 check("nói thẳng gói chạy mã thật, không làm mềm",
       "store.inspect.code.title" in src_js
-      and "chạy Python thật" in _VI.get("store.inspect.code.title", "")
-      and "máy chủ Javis" in _VI.get("store.inspect.code.title", ""))
+      and "real Python" in _EN.get("store.inspect.code.title", "")
+      and "MARGA server" in _EN.get("store.inspect.code.title", ""))
 
 src_c = (DASHBOARD / "console.js").read_text(encoding="utf-8")
 check("trang Gói đăng ký trong rail", '"packs"' in src_c and "JavisPacks" in src_c)
